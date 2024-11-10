@@ -1,0 +1,5 @@
+v
+.env
+/__pycache__/
+data
+x.log

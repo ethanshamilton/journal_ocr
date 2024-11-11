@@ -25,6 +25,18 @@ def convert_and_encode_pdf(pdf_path, output_format="PNG"):
     images = convert_from_path(pdf_path)
     return [encode_image(image, output_format) for image in images]
 
+def encode_entry(file_path, output_format="PNG"):
+    """ Calls the corresponding encoding function on PDF and image based journal entries. """
+    try:
+        if file_path.lower().endswith('.pdf'):
+            return convert_and_encode_pdf(file_path, output_format)
+        else:
+            with Image.open(file_path) as image:
+                return [encode_image(image, output_format)]
+    except Exception as e:
+        logging.error(f"Error encoding file {file_path}: {str(e)}")
+        raise
+
 def check_image_size(encoded_image, max_size_mb=20):
     """ Ensure image doesn't exceed maximum file size. """
     img_bytes = base64.b64decode(encoded_image)
@@ -63,3 +75,14 @@ def transcribe_images(b64str_images):
         )
         transcriptions.append(response.choices[0].message.content)
     return transcriptions
+
+def append_to_markdown(file_path, transcription):
+    """ Given a file path and transcribed text, append the transcription to the markdown file. """
+    transcription_template = """### Transcription\n{transcription}"""
+    try:
+        with open(file_path, 'a') as f:
+            f.write(transcription_template.format(transcription=transcription))
+        logging.info(f"Successfully appended transcription to {file_path}")
+    except Exception as e:
+        logging.error(f"Error appending transcription to {file_path}: {str(e)}")
+        raise

@@ -3,7 +3,6 @@ import base64
 import pytest
 from PIL import Image
 from io import BytesIO
-import src.transcribe as transcribe
 import src.navigation as navigation
 
 SAMPLE_DATA_FOLDER = "data/sample_data"

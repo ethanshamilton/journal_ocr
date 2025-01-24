@@ -42,7 +42,7 @@ def test_append_new_transcription(temp_markdown):
     """
     md_file = temp_markdown(initial_content)
     test_transcription = "This is an example transcription."
-    transcribe.append_to_markdown(md_file, test_transcription)
+    transcribe.insert_transcription(md_file, test_transcription)
 
     # verify content
     with open(md_file, 'r') as f:
@@ -50,7 +50,6 @@ def test_append_new_transcription(temp_markdown):
     
     assert "### Transcription" in content
     assert test_transcription in content
-    assert content.index("### Journal Entry" < content.index("### Transcription"))
 
 def test_replace_existing_transcription(temp_markdown):
     """ Test replacing an existing transcription. """
@@ -67,7 +66,7 @@ def test_replace_existing_transcription(temp_markdown):
     """
     md_file = temp_markdown(initial_content)
     new_transcription = "New transcription text"
-    transcribe.append_to_markdown(md_file, new_transcription)
+    transcribe.insert_transcription(md_file, new_transcription)
     with open(md_file, 'r') as f:
         content = f.read()
 
@@ -89,7 +88,7 @@ def test_transcription_at_end(temp_markdown):
     """
     md_file = temp_markdown(initial_content)
     new_transcription = "New transcription"
-    transcribe.append_to_markdown(md_file, new_transcription)
+    transcribe.insert_transcription(md_file, new_transcription)
     with open(md_file, 'r') as f:
         content = f.read()
 

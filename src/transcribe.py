@@ -13,16 +13,46 @@ load_dotenv()
 OPENAI_API_KEY=os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-def append_to_markdown(file_path:str, transcription:str) -> None:
-    """ Given a file path and transcribed text, append the transcription to the markdown file. """
-    transcription_template = """### Transcription\n{transcription}"""
-    try:
-        with open(file_path, 'a') as f:
-            f.write(transcription_template.format(transcription=transcription))
-        logging.info(f"Successfully appended transcription to {file_path}")
-    except Exception as e:
-        logging.error(f"Error appending transcription to {file_path}: {str(e)}")
-        raise
+def insert_transcription(file_path:str, transcription:str) -> None:
+    """
+    Insert or append transcription in markdown file.
+    If transcription section exists, replace its contents.
+    If no transcription section, append transcription to the end of the file.
+    """
+    transcription_header = "### Transcription"
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+
+    ### Find transcription section if it exists
+    transcription_index = -1
+    next_section_index = -1
+
+    for i, line in enumerate(lines):
+        if line.strip() == transcription_header:
+            transcription_index = i
+        # check for next section if transcription section exists
+        elif transcription_index != -1 and line.strip().startswith("#"):
+            next_section_index = i
+            break
+    
+    if transcription_index != -1:
+        # keep existing content before insertion
+        new_content = lines[:transcription_index + 1]
+        # insert the transcription
+        new_content.append(f"\n{transcription}\n\n")
+        # keep everything after the insertion
+        if next_section_index != -1:
+            new_content.extend(lines[next_section_index:])
+    else:
+        new_content = lines
+        if new_content and not new_content[-1].endswith('\n'):
+            new_content.append('\n')
+        new_content.extend([f"\n{transcription_header}\n{transcription}\n"])
+
+    with open(file_path, 'w') as f:
+        f.writelines(new_content)
+    
+    logging.info(f"Updated transcription in {file_path}")
 
 def check_image_size(encoded_image:str, max_size_mb:int=20) -> bool:
     """ Ensure image doesn't exceed maximum file size. """

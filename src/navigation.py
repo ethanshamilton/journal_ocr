@@ -2,6 +2,7 @@
 # this file contains all the functions for traversing the journal and
 # ensuring data standardization. 
 import os
+import shutil
 import logging
 
 page_template = """
@@ -10,7 +11,7 @@ page_template = """
 ![[{filename}]]
 """
 
-def crawl_journal_entries(root_dir:str="Daily Pages"):
+def crawl_journal_entries(root_dir:str="Daily Pages") -> list[tuple]:
     """ Recursively crawl through journal directories and identifies entries that need to be transcribed. """
     journal_files = []
 
@@ -51,3 +52,12 @@ def crawl_journal_entries(root_dir:str="Daily Pages"):
         logging.error(f"Error: {str(e)}")
         raise
     return journal_files
+
+def duplicate_folder(source_folder:str, target_folder:str) -> None:
+    """ Delete target folder if it exists, then copy source folder to target folder. """
+    # check if target folder exists and remove it
+    if os.path.exists(target_folder):
+        shutil.rmtree(target_folder)
+    
+    # copy source folder to target location
+    shutil.copytree(source_folder, target_folder)

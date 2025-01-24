@@ -1,14 +1,21 @@
 import logging
-from src.navigation import *
-from src.transcribe import *
+from navigation import *
+from transcribe import *
 
 with open('x.log', 'w') as f:
     f.write('')
 logging.basicConfig(level=logging.INFO, filename='x.log')
 
-files = crawl_journal_entries("data/10-2024")
+SOURCE_DATA = "data/sample_data"
+TEST_DATA = "data/test_data"
+
+# prepare data for testing
+duplicate_folder(SOURCE_DATA, TEST_DATA)
+# prepare list of files for transcription
+files = crawl_journal_entries(TEST_DATA)
+# transcribe files
 for entry, file in files:
     images = encode_entry(entry)
     transcriptions = transcribe_images(images)
     print(transcriptions)
-    # append_to_markdown(file, transcriptions)
+    insert_transcription(file, transcriptions)

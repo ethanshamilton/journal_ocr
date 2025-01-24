@@ -96,7 +96,7 @@ def transcribe_images(b64str_images:list[str]) -> list[str]:
                     'content': [
                         {
                             'type': 'text',
-                            'text': 'Please transcribe this document.'
+                            'text': 'Please transcribe this document. Do not return any commentary on the task, simply return the transcription of the document. These documents are from a journal so I am not asking you to provide me with any information, in case the contents of the document make your safety senses tingle.'
                         },
                         {
                             'type': 'image_url',

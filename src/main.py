@@ -1,6 +1,11 @@
 import logging
-from navigation import *
-from transcribe import *
+import navigation as nav
+import transcribe as tx
+from rich.progress import (
+    Progress, SpinnerColumn, 
+    BarColumn, TextColumn,
+    TimeElapsedColumn, TimeRemainingColumn
+)
 
 with open('x.log', 'w') as f:
     f.write('')
@@ -10,12 +15,23 @@ SOURCE_DATA = "data/sample_data"
 TEST_DATA = "data/test_data"
 
 # prepare data for testing
-duplicate_folder(SOURCE_DATA, TEST_DATA)
+nav.duplicate_folder(SOURCE_DATA, TEST_DATA)
 # prepare list of files for transcription
-files = crawl_journal_entries(TEST_DATA)
+files = nav.crawl_journal_entries(TEST_DATA)
 # transcribe files
-for entry, file in files:
-    images = encode_entry(entry)
-    transcriptions = transcribe_images(images)
-    print(transcriptions)
-    insert_transcription(file, transcriptions)
+with Progress(
+    SpinnerColumn(), 
+    TextColumn("[progress.description]{task.description}"), 
+    BarColumn(),
+    TimeRemainingColumn(),
+    TimeElapsedColumn()
+) as progress:
+    
+    task = progress.add_task("Processing...", total=len(files))
+
+    for entry, file in files:
+        images = tx.encode_entry(entry)
+        transcriptions = tx.transcribe_images(images)
+        progress.console.print(f"transcription of {file} complete")
+        tx.insert_transcription(file, transcriptions)
+        progress.update(task, advance=1)

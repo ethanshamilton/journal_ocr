@@ -13,6 +13,7 @@ x.log
 
 # Virtual environments
 .v
+.venv
 
 # Sensitive files
 .env

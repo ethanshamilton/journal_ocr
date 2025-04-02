@@ -1,4 +1,3 @@
-import os
 import pytest
 import src.transcribe as transcribe
 

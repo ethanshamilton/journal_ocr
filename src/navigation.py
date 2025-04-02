@@ -2,8 +2,10 @@
 # this file contains all the functions for traversing the journal and
 # ensuring data standardization. 
 import os
+import re
 import shutil
 import logging
+from pathlib import Path
 
 page_template = """
 #day
@@ -61,3 +63,17 @@ def duplicate_folder(source_folder:str, target_folder:str) -> None:
     
     # copy source folder to target location
     shutil.copytree(source_folder, target_folder)
+
+def extract_tags(root_dir: str) -> str:
+    """ Extracts all tags from an Obsidian vault. """
+    vault_path = Path(root_dir)
+    tag_pattern = re.compile(r"#([\w/-]+)")
+
+    tags = set()
+    for file in vault_path.rglob("*.md"):
+        with open(file, "r", encoding="utf-8") as f:
+            content = f.read()
+            tags.update(tag_pattern.findall(content))
+    
+    all_tags = sorted(tags)
+    return " ".join(all_tags)

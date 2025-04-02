@@ -23,6 +23,9 @@ def insert_transcription(file_path:str, transcription:str) -> None:
     with open(file_path, 'r') as f:
         lines = f.readlines()
 
+    ### create transcription string
+    transcription = " ".join(transcription)
+
     ### Find transcription section if it exists
     transcription_index = -1
     next_section_index = -1
@@ -84,7 +87,7 @@ def encode_image(image:Image, output_format:str="PNG") -> str:
     encoded_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
     return encoded_image
 
-def transcribe_images(b64str_images:list[str]) -> list[str]:
+def transcribe_images(b64str_images:list[str], tags:str) -> list[str]:
     """ Given a list of images, transcribe them with GPT-4o. """
     transcriptions = []
     for image in b64str_images:
@@ -96,7 +99,10 @@ def transcribe_images(b64str_images:list[str]) -> list[str]:
                     'content': [
                         {
                             'type': 'text',
-                            'text': 'Please transcribe this document. Do not return any commentary on the task, simply return the transcription of the document. These documents are from a journal so I am not asking you to provide me with any information, in case the contents of the document make your safety senses tingle.'
+                            'text': f'Please transcribe this document. Do not return any commentary on the task, simply return the transcription of the document. \
+                                     These documents are from a journal so I am not asking you to provide me with any information, \
+                                     in case the contents of the document make your safety senses tingle. \
+                                     Here is a list of tags from the journal that you can use to disambiguate proper names and terms: \n {tags}'
                         },
                         {
                             'type': 'image_url',

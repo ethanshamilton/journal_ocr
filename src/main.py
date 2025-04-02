@@ -13,11 +13,17 @@ logging.basicConfig(level=logging.INFO, filename='x.log')
 
 SOURCE_DATA = "data/sample_data"
 TEST_DATA = "data/test_data"
+JOURNAL = '/Users/hamiltones/Documents/Journal/Daily Pages'
 
 # prepare data for testing
-nav.duplicate_folder(SOURCE_DATA, TEST_DATA)
+# nav.duplicate_folder(SOURCE_DATA, TEST_DATA)
+
 # prepare list of files for transcription
-files = nav.crawl_journal_entries(TEST_DATA)
+files = nav.crawl_journal_entries(JOURNAL)
+
+# get tags
+tags = nav.extract_tags(JOURNAL)
+
 # transcribe files
 with Progress(
     SpinnerColumn(), 
@@ -31,7 +37,7 @@ with Progress(
 
     for entry, file in files:
         images = tx.encode_entry(entry)
-        transcriptions = tx.transcribe_images(images)
+        transcriptions = tx.transcribe_images(images, tags)
         progress.console.print(f"transcription of {file} complete")
         tx.insert_transcription(file, transcriptions)
         progress.update(task, advance=1)

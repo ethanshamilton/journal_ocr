@@ -3,6 +3,7 @@
 # ensuring data standardization. 
 import os
 import re
+import yaml
 import shutil
 import logging
 from pathlib import Path
@@ -30,6 +31,27 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> list[tuple]:
         date_part = filename.split()[0]
         return os.path.join(directory, f"{date_part}.md")
     
+    def has_transcription(md_path: str) -> bool:
+        """ Checks the markdown doc to see if transcription is true in YAML frontmatter. """
+        if not os.path.exists(md_path):
+            return False
+        with open(md_path, 'r') as f:
+            lines = f.readlines()
+
+        if not lines or lines[0].strip() != "---":
+            return False
+        
+        yaml_lines = []
+        for line in lines[1:]:
+            if line.strip() == "---":
+                break
+            yaml_lines.append(line)
+        try:
+            frontmatter = yaml.safe_load("".join(yaml_lines))
+            return frontmatter.get("transcription") == "True"
+        except yaml.YAMLError:
+            return False
+    
     def process_directory(current_dir):
         """ Recursively process directories to find journal entries. """
         for item in os.listdir(current_dir):
@@ -44,8 +66,10 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> list[tuple]:
                         f.write(page_template.format(filename=item))
                     logging.info(f"Created new markdown file: {md_path}")
                 
-                journal_files.append((full_path, md_path))
-                logging.info(f"Found journal entry: {full_path}")
+                # only add note to list if transcription isn't true in frontmatter
+                if not has_transcription(md_path):
+                    journal_files.append((full_path, md_path))
+                    logging.info(f"Found journal entry: {full_path}")
     
     try:
         process_directory(root_dir)

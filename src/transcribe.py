@@ -1,6 +1,7 @@
 # transcribe.py
 # functions for image transcription
 import os
+import yaml
 import base64
 import logging
 from PIL import Image
@@ -15,22 +16,43 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 def insert_transcription(file_path:str, transcription:str) -> None:
     """
-    Insert or append transcription in markdown file.
-    If transcription section exists, replace its contents.
-    If no transcription section, append transcription to the end of the file.
+    - Insert or append transcription in markdown file.
+    - If transcription section exists, replace its contents.
+    - If no transcription section, append transcription to the end of the file.
+    - Ensures YAML frontmatter exists with transcription: "True".
     """
     transcription_header = "### Transcription"
     with open(file_path, 'r') as f:
         lines = f.readlines()
 
-    ### create transcription string
-    transcription = " ".join(transcription)
+    # parse YAML frontmatter if it exists and update transcription field
+    frontmatter = {}
+    content_start = 0
 
-    ### Find transcription section if it exists
+    if lines and lines[0].strip() == "---":
+        for i in range(1, len(lines)):
+            if lines[i].strip() == "---":
+                try:
+                    frontmatter = yaml.safe_load("".join(lines[1:i])) or {}
+                except yaml.YAMLError:
+                    logging.warning(f"Could not parse frontmatter in {file_path}")
+                content_start = i + 1
+                break
+
+    frontmatter["transcription"] = "True"
+
+    new_lines = ["---\n", yaml.dump(frontmatter), "---\n"]
+
+    body_lines = lines[content_start:]
+
+    # create transcription string
+    # transcription = " ".join(transcription)
+
+    # Find transcription section if it exists
     transcription_index = -1
-    next_section_index = -1
+    next_section_index = None
 
-    for i, line in enumerate(lines):
+    for i, line in enumerate(body_lines):
         if line.strip() == transcription_header:
             transcription_index = i
         # check for next section if transcription section exists
@@ -40,20 +62,20 @@ def insert_transcription(file_path:str, transcription:str) -> None:
     
     if transcription_index != -1:
         # keep existing content before insertion
-        new_content = lines[:transcription_index + 1]
-        # insert the transcription
-        new_content.append(f"\n{transcription}\n\n")
+        new_lines.extend(body_lines[:transcription_index + 1])
+        # add new transcription
+        new_lines.append(f"\n{transcription}\n\n")
         # keep everything after the insertion
-        if next_section_index != -1:
-            new_content.extend(lines[next_section_index:])
+        if next_section_index is not None:
+            new_lines.extend(lines[next_section_index:])
     else:
-        new_content = lines
-        if new_content and not new_content[-1].endswith('\n'):
-            new_content.append('\n')
-        new_content.extend([f"\n{transcription_header}\n{transcription}\n"])
+        new_lines.extend(body_lines)
+        if new_lines and not new_lines[-1].endswith('\n'):
+            new_lines.append('\n')
+        new_lines.extend([f"\n{transcription_header}\n{transcription}\n"])
 
     with open(file_path, 'w') as f:
-        f.writelines(new_content)
+        f.writelines(new_lines)
     
     logging.info(f"Updated transcription in {file_path}")
 
@@ -87,7 +109,7 @@ def encode_image(image:Image, output_format:str="PNG") -> str:
     encoded_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
     return encoded_image
 
-def transcribe_images(b64str_images:list[str], tags:str) -> list[str]:
+def transcribe_images(b64str_images:list[str], tags:str) -> str:
     """ Given a list of images, transcribe them with GPT-4o. """
     transcriptions = []
     for image in b64str_images:
@@ -115,7 +137,8 @@ def transcribe_images(b64str_images:list[str], tags:str) -> list[str]:
             ]
         )
         transcriptions.append(response.choices[0].message.content)
-    return transcriptions
+        transcription = "".join(transcriptions)
+    return transcription
 
 def verify_image(encoded_image:str) -> None:
     """ Verify that a base64 encoded image can be decoded. """

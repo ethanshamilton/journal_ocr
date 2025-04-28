@@ -13,4 +13,4 @@ echo ""
 echo "🚀 Running main.py in test mode..."
 echo ""
 
-python src/main.py --mode test
+python src/transcription_pipeline.py --mode test

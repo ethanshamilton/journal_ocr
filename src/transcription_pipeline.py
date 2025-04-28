@@ -1,12 +1,17 @@
+import os
 import logging
 import argparse
-import navigation as nav
-import transcribe as tx
 from rich.progress import (
     Progress, SpinnerColumn, 
     BarColumn, TextColumn,
     TimeElapsedColumn, TimeRemainingColumn
 )
+from dotenv import load_dotenv
+
+import navigation as nav
+import transcribe as tx
+
+load_dotenv()
 
 with open('x.log', 'w') as f:
     f.write('')
@@ -14,7 +19,7 @@ logging.basicConfig(level=logging.INFO, filename='x.log')
 
 SOURCE_DATA = "data/sample_data"
 TEST_DATA = "data/test_data"
-JOURNAL = '/Users/hamiltones/Documents/Journal/Daily Pages'
+JOURNAL = os.getenv("JOURNAL_PATH")
 
 def main():
     parser = argparse.ArgumentParser(description="Run journal OCR")

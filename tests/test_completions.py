@@ -1,5 +1,5 @@
 import pytest
-import src.transcribe as transcribe
+import src.completions as completions
 
 SAMPLE_PDF = "data/sample_data/10-2024/10-07-2024 PM.pdf"
 SAMPLE_IMAGE = "data/sample_data/06-2023/06-01-2023 AM-128.jpg"
@@ -7,20 +7,20 @@ SAMPLE_IMAGE = "data/sample_data/06-2023/06-01-2023 AM-128.jpg"
 def test_encode_entry():
     """ Test `encode_entry()` with sample image and PDF """
     # test PDF encoding
-    pdf = transcribe.encode_entry(SAMPLE_PDF)
+    pdf = completions.encode_entry(SAMPLE_PDF)
     assert isinstance(pdf, list)
     assert len(pdf) > 0
     assert all(isinstance(encoded, str) for encoded in pdf)
 
     # test image encoding
-    image = transcribe.encode_entry(SAMPLE_IMAGE)
+    image = completions.encode_entry(SAMPLE_IMAGE)
     assert isinstance(image, list)
     assert len(image) == 1
     assert isinstance(image[0], str)
 
 def test_encode_entry_on_invalid_file():
     with pytest.raises(Exception):
-        transcribe.encode_entry("nonexistent.pdf")
+        completions.encode_entry("nonexistent.pdf")
 
 @pytest.fixture
 def temp_markdown(tmp_path):
@@ -41,7 +41,7 @@ def test_append_new_transcription(temp_markdown):
     """
     md_file = temp_markdown(initial_content)
     test_transcription = "This is an example transcription."
-    transcribe.insert_transcription(md_file, test_transcription)
+    completions.insert_transcription(md_file, test_transcription)
 
     # verify content
     with open(md_file, 'r') as f:
@@ -65,7 +65,7 @@ def test_replace_existing_transcription(temp_markdown):
     """
     md_file = temp_markdown(initial_content)
     new_transcription = "New transcription text"
-    transcribe.insert_transcription(md_file, new_transcription)
+    completions.insert_transcription(md_file, new_transcription)
     with open(md_file, 'r') as f:
         content = f.read()
 
@@ -87,7 +87,7 @@ def test_transcription_at_end(temp_markdown):
     """
     md_file = temp_markdown(initial_content)
     new_transcription = "New transcription"
-    transcribe.insert_transcription(md_file, new_transcription)
+    completions.insert_transcription(md_file, new_transcription)
     with open(md_file, 'r') as f:
         content = f.read()
 

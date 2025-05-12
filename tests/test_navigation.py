@@ -1,8 +1,4 @@
 import os
-import base64
-import pytest
-from PIL import Image
-from io import BytesIO
 import src.navigation as navigation
 
 SAMPLE_DATA_FOLDER = "data/sample_data"
@@ -14,7 +10,7 @@ def test_crawl_journal_entries():
     # verify files found
     assert len(journal_files) > 0
 
-    for source_file, md_file in journal_files:
+    for source_file, md_file in journal_files['to_transcribe']:
         # verify source file exists
         assert os.path.exists(source_file)
         # verify markdown files exist or were created

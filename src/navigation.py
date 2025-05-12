@@ -14,9 +14,10 @@ page_template = """
 ![[{filename}]]
 """
 
-def crawl_journal_entries(root_dir:str="Daily Pages") -> list[tuple]:
-    """ Recursively crawl through journal directories and identifies entries that need to be transcribed. """
-    journal_files = []
+def crawl_journal_entries(root_dir:str="Daily Pages") -> dict[list[tuple[str, str]], list[str]]:
+    """ Recursively crawl through journal directories and identifies entries that need to be transcribed or embedded. """
+    to_transcribe = []
+    to_embed = []
 
     def is_journal_entry(filename):
         """ Checks if the file is a journal entry, which are either PDF or image files. """
@@ -31,15 +32,16 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> list[tuple]:
         date_part = filename.split()[0]
         return os.path.join(directory, f"{date_part}.md")
     
-    def has_transcription(md_path: str) -> bool:
-        """ Checks the markdown doc to see if transcription is true in YAML frontmatter. """
+    def check_frontmatter(md_path: str) -> dict:
+        """Returns a dict {transcription: bool, embedding: bool} based on YAML frontmatter."""
+        result = {"transcription": False, "embedding": False}
         if not os.path.exists(md_path):
-            return False
+            return result
         with open(md_path, 'r') as f:
             lines = f.readlines()
 
         if not lines or lines[0].strip() != "---":
-            return False
+            return result
         
         yaml_lines = []
         for line in lines[1:]:
@@ -47,10 +49,14 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> list[tuple]:
                 break
             yaml_lines.append(line)
         try:
-            frontmatter = yaml.safe_load("".join(yaml_lines))
-            return frontmatter.get("transcription") == "True"
+            frontmatter = yaml.safe_load("".join(yaml_lines)) or {}
+            if frontmatter.get("transcription") == "True":
+                result["transcription"] = True
+            if frontmatter.get("embedding") == "True":
+                result["embedding"] = True
         except yaml.YAMLError:
-            return False
+            pass
+        return result
     
     def process_directory(current_dir):
         """ Recursively process directories to find journal entries. """
@@ -67,17 +73,21 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> list[tuple]:
                     logging.info(f"Created new markdown file: {md_path}")
                 
                 # only add note to list if transcription isn't true in frontmatter
-                if not has_transcription(md_path):
-                    journal_files.append((full_path, md_path))
-                    logging.info(f"Found journal entry: {full_path}")
+                frontmatter = check_frontmatter(md_path)
+                if not frontmatter['transcription']:
+                    to_transcribe.append((full_path, md_path))
+                    logging.info(f"Added {full_path} to transcribe list")
+                if not frontmatter['embedding']:
+                    to_embed.append(md_path)
+                    logging.info(f"Added {full_path} to embedding list")
     
     try:
         process_directory(root_dir)
-        logging.info(f"Found {len(journal_files)} entries to process.")
+        logging.info(f"Found {len(to_transcribe)} entries to transcribe and {len(to_embed)} entries to embed.")
     except Exception as e:
         logging.error(f"Error: {str(e)}")
         raise
-    return journal_files
+    return { "to_transcribe": to_transcribe, "to_embed": to_embed }
 
 def duplicate_folder(source_folder:str, target_folder:str) -> None:
     """ Delete target folder if it exists, then copy source folder to target folder. """

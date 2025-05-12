@@ -8,8 +8,8 @@ from rich.progress import (
 )
 from dotenv import load_dotenv
 
+import completions as c
 import navigation as nav
-import transcribe as tx
 
 load_dotenv()
 
@@ -40,7 +40,7 @@ def main():
         root_dir = JOURNAL
 
     # prepare list of files for transcription
-    files = nav.crawl_journal_entries(root_dir)
+    files = nav.crawl_journal_entries(root_dir)['to_transcribe']
 
     # get tags
     tags = nav.extract_tags(root_dir)
@@ -54,13 +54,13 @@ def main():
         TimeElapsedColumn()
     ) as progress:
         
-        task = progress.add_task("Processing...", total=len(files))
+        task = progress.add_task("Transcribing...", total=len(files))
 
         for entry, file in files:
-            images = tx.encode_entry(entry)
-            transcriptions = tx.transcribe_images(images, tags)
+            images = c.encode_entry(entry)
+            transcriptions = c.transcribe_images(images, tags)
             progress.console.print(f"transcription of {file} complete")
-            tx.insert_transcription(file, transcriptions)
+            c.insert_transcription(file, transcriptions)
             progress.update(task, advance=1)
 
 if __name__ == "__main__":

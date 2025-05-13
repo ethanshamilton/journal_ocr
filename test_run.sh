@@ -17,5 +17,8 @@ python src/transcription_pipeline.py --mode test
 
 echo ""
 echo "🕸️ Running embedding pipeline in test mode..."
+echo ""
 
 python src/embedding_pipeline.py --mode test
+
+echo ""

@@ -1,7 +1,7 @@
 from completions import get_embedding, query_llm
 from es_client import get_similar_entries
 
-query = "What tends to trigger, cause, or make me anxious?"
+query = "What kind of goals are consistently important to me? What things give me purpose and fulfillment?"
 
 query_embedding = get_embedding(query)
 similar_entries = get_similar_entries(query_embedding, 7)

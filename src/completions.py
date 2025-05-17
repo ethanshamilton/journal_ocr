@@ -29,19 +29,6 @@ def convert_and_encode_pdf(pdf_path:str, output_format:str="PNG") -> list[str]:
     images = convert_from_path(pdf_path)
     return [encode_image(image, output_format) for image in images]
 
-def embed_entry(text: str) -> list[float]:
-    """Runs text transcription through Gemini embedding model, retrying on 429 errors."""
-    try:
-        response = google_client.models.embed_content(
-            model="gemini-embedding-exp-03-07",
-            contents=text,
-        )
-        return response.embeddings[0].values
-    except Exception as _:
-        print("Rate limited... retrying in 5")
-        time.sleep(5)
-        embed_entry(text)
-
 def encode_entry(file_path:str, output_format:str="PNG") -> list[str]:
     """ Calls the corresponding encoding function on PDF and image based journal entries. """
     try:
@@ -60,6 +47,19 @@ def encode_image(image:Image, output_format:str="PNG") -> str:
     image.save(buffered, format=output_format)
     encoded_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
     return encoded_image
+
+def get_embedding(text: str) -> list[float]:
+    """Runs text transcription through Gemini embedding model, retrying on 429 errors."""
+    try:
+        response = google_client.models.embed_content(
+            model="gemini-embedding-exp-03-07",
+            contents=text,
+        )
+        return response.embeddings[0].values
+    except Exception as _:
+        print("Rate limited... retrying in 5")
+        time.sleep(5)
+        get_embedding(text)
 
 def insert_transcription(file_path: str, transcription: str) -> None:
     """

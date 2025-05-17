@@ -63,7 +63,7 @@ def main():
             with open(entry, 'r', encoding='utf-8') as file:
                 content = file.read()
             transcription = l.extract_transcription(content)
-            embedding = c.embed_entry(transcription)
+            embedding = c.get_embedding(transcription)
             c.update_frontmatter_field(entry, "embedding", "True")
             embeddings[entry] = embedding
             progress.update(task, advance=1)

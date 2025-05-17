@@ -5,6 +5,7 @@ import yaml
 import time
 import base64
 import logging
+import anthropic
 from PIL import Image
 from io import BytesIO
 from google import genai
@@ -115,6 +116,18 @@ def insert_transcription(file_path: str, transcription: str) -> None:
         f.writelines(new_lines)
 
     logging.info(f"Updated transcription in {file_path}")
+
+def query_llm(prompt: str, provider: str, model: str):
+    """ Query any of the supported LLM providers and models. """
+    if provider == "anthropic":
+        return anthropic.Anthropic().messages.create(
+            model=model,
+            max_tokens=1024,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+
 
 def transcribe_images(b64str_images:list[str], tags:str) -> str:
     """ Given a list of images, transcribe them with GPT-4o. """

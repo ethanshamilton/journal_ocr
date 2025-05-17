@@ -41,4 +41,4 @@ def get_similar_entries(embedding: list[float], n: int) -> dict:
         }
     )
 
-    return [(hit["_source"]["title"], hit["_score"]) for hit in response["hits"]["hits"]]
+    return [(hit["_source"], hit["_score"]) for hit in response["hits"]["hits"]]

@@ -113,7 +113,8 @@ def index_notes():
             }
 
         # index the doc
-        res = requests.post(f"{ES_ENDPOINT}/journals/_doc", json=doc)
+        doc_id = date_part
+        res = requests.post(f"{ES_ENDPOINT}/journals/_doc/{doc_id}", json=doc)
         print(f"📥 Indexed {filename}: {res.status_code}")
 
 if __name__ == "__main__":

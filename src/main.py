@@ -1,7 +1,7 @@
 from completions import get_embedding, query_llm
 from es_client import get_similar_entries
 
-query = "What kind of goals are consistently important to me? What things give me purpose and fulfillment?"
+query = "What should my next life phase / life arc be... should I move somewhere... should I do somethign..."
 
 query_embedding = get_embedding(query)
 similar_entries = get_similar_entries(query_embedding, 7)
@@ -23,7 +23,7 @@ prompt = f"""
     {entries_str}
 """
 
-llm_response = query_llm(prompt, "anthropic", "claude-3-5-sonnet-20240620")
+llm_response = query_llm(prompt, "anthropic", "claude-opus-4-20250514")
 
 print(entries_str)
 print("")

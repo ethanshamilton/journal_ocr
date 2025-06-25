@@ -2,10 +2,13 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: #181a20;
+  color: #eaeaea
 }
 
 .app-container {
   display: flex;
   height: 100vh;
   overflow: hidden;
+  background: #23262f;
 }

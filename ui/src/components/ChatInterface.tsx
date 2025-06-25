@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import './ChatInterface.css'
+import { apiService } from '../services/api'
+import type { Document } from '../types'
 
 interface Message {
   id: number
@@ -8,7 +10,11 @@ interface Message {
   timestamp: Date
 }
 
-const ChatInterface = () => {
+interface ChatInterfaceProps {
+  setDocuments: React.Dispatch<React.SetStateAction<Document[]>>
+}
+
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -23,9 +29,10 @@ const ChatInterface = () => {
   const sendMessage = async () => {
     if (!inputText.trim()) return
 
+    const query = inputText
     const userMessage: Message = {
       id: Date.now(),
-      text: inputText,
+      text: query,
       sender: 'user',
       timestamp: new Date()
     }
@@ -34,17 +41,65 @@ const ChatInterface = () => {
     setInputText('')
     setIsLoading(true)
 
-    // Simulate API call to FastAPI backend
-    setTimeout(() => {
+    try {
+      // Get similar entries from backend
+      const similarEntries = await apiService.getSimilarEntries({ query, top_k: 5 })
+      
+      // Prepare similar entries to be sent to DocumentViewer
+      const similarDocs: Document[] = similarEntries.results.map(([entry, score], i) => ({
+        id: i + 1,
+        title: entry.title || `Similar Entry ${i + 1}`,
+        content: entry.text || JSON.stringify(entry)
+      }))
+
+      setDocuments(similarDocs)
+
+      // Build context from similar entries
+      let entriesStr = ""
+      similarEntries.results.forEach(([entry, score], i) => {
+        entriesStr += `Entry ${i + 1} (Score: ${score}):\n`
+        Object.entries(entry).forEach(([k, v]) => {
+          if (k !== "embedding") {
+            entriesStr += `  ${k}: ${v}\n`
+          }
+        })
+        entriesStr += "\n"
+      })
+
+      // Query LLM with context
+      const prompt = `I am giving you access to some of my journal entries in order to help answer the following question:
+${query}
+
+Here are the journal entries:
+${entriesStr}
+
+Please don't respond in markdown, just plain text.`
+
+      const llmResponse = await apiService.queryLLM({
+        prompt,
+        provider: "anthropic",
+        model: "claude-sonnet-4-20250514"
+      })
+
       const botMessage: Message = {
         id: Date.now() + 1,
-        text: `I received your query: "${inputText}". This would normally search through your Elasticsearch documents and provide relevant results.`,
+        text: llmResponse.response,
         sender: 'bot',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, botMessage])
+    } catch (error) {
+      console.error('Error querying API:', error)
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        text: 'Sorry, I encountered an error while processing your request. Please make sure the backend is running.',
+        sender: 'bot',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

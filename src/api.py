@@ -1,10 +1,19 @@
-from pydantic import BaseModel
 from fastapi import FastAPI
+from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.es_client import get_similar_entries
 from src.completions import get_embedding, query_llm
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class QueryRequest(BaseModel):
     query: str
@@ -28,4 +37,4 @@ def similar_entries(req: QueryRequest) -> dict:
 @app.post("/query_llm")
 def _query_llm(req: LLMRequest) -> dict:
     response = query_llm(req.prompt, req.provider, req.model)
-    return { "response": response }
+    return { "response": response.content[0].text }

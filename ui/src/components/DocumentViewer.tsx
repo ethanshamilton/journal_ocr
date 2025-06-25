@@ -1,11 +1,6 @@
 import { useState } from 'react'
 import './DocumentViewer.css'
-
-interface Document {
-  id: number
-  title: string
-  content: string
-}
+import type { Document } from '../types'
 
 interface DocumentViewerProps {
   documents: Document[]
@@ -35,7 +30,10 @@ const DocumentViewer = ({ documents }: DocumentViewerProps) => {
         {selectedDocument ? (
           <div>
             <h3>{selectedDocument.title}</h3>
-            <div className="content">
+            <div 
+              className="content"
+              style={{ whiteSpace : 'pre-line' }}
+            >
               {selectedDocument.content}
             </div>
           </div>

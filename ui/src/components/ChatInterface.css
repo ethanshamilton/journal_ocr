@@ -139,7 +139,7 @@
 }
 
 .input-container textarea:disabled {
-  background-color: #f5f5f5;
+  background-color: black;
   cursor: not-allowed;
 }
 

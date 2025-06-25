@@ -2,6 +2,7 @@ import { useState } from 'react'
 import './ChatInterface.css'
 import { apiService } from '../services/api'
 import type { Document } from '../types'
+import ReactMarkdown from 'react-markdown'
 
 interface Message {
   id: number
@@ -71,9 +72,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
 ${query}
 
 Here are the journal entries:
-${entriesStr}
-
-Please don't respond in markdown, just plain text.`
+${entriesStr}`
 
       const llmResponse = await apiService.queryLLM({
         prompt,
@@ -112,7 +111,7 @@ Please don't respond in markdown, just plain text.`
   return (
     <div className="chat-interface">
       <div className="chat-header">
-        <h3>Chat Assistant</h3>
+        <h3>Journal Chat</h3>
       </div>
       
       <div className="chat-messages">
@@ -122,7 +121,7 @@ Please don't respond in markdown, just plain text.`
             className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'}`}
           >
             <div className="message-content">
-              {message.text}
+              <ReactMarkdown>{message.text}</ReactMarkdown>
             </div>
             <div className="message-timestamp">
               {message.timestamp.toLocaleTimeString()}

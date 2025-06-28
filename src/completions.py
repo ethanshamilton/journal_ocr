@@ -128,7 +128,6 @@ def query_llm(prompt: str, provider: str, model: str):
             ]
         )
 
-
 def transcribe_images(b64str_images:list[str], tags:str) -> str:
     """ Given a list of images, transcribe them with GPT-4o. """
     transcriptions = []

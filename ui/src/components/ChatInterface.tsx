@@ -43,11 +43,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
     setIsLoading(true)
 
     try {
-      // Get similar entries from backend
-      const similarEntries = await apiService.getSimilarEntries({ query, top_k: 5 })
+      // query journal
+      const combinedResponse = await apiService.queryJournal({
+          query,
+          top_k: 5, 
+          provider: 'anthropic',
+          model: "claude-opus-4-20250514"
+        })
       
       // Prepare similar entries to be sent to DocumentViewer
-      const similarDocs: Document[] = similarEntries.results.map(([entry, score], i) => ({
+      const similarDocs: Document[] = combinedResponse.docs.map(([entry, score], i) => ({
         id: i + 1,
         title: entry.title || `Similar Entry ${i + 1}`,
         content: entry.text || JSON.stringify(entry)
@@ -55,34 +60,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
 
       setDocuments(similarDocs)
 
-      // Build context from similar entries
-      let entriesStr = ""
-      similarEntries.results.forEach(([entry, score], i) => {
-        entriesStr += `Entry ${i + 1} (Score: ${score}):\n`
-        Object.entries(entry).forEach(([k, v]) => {
-          if (k !== "embedding") {
-            entriesStr += `  ${k}: ${v}\n`
-          }
-        })
-        entriesStr += "\n"
-      })
-
-      // Query LLM with context
-      const prompt = `I am giving you access to some of my journal entries in order to help answer the following question:
-${query}
-
-Here are the journal entries:
-${entriesStr}`
-
-      const llmResponse = await apiService.queryLLM({
-        prompt,
-        provider: "anthropic",
-        model: "claude-sonnet-4-20250514"
-      })
-
       const botMessage: Message = {
         id: Date.now() + 1,
-        text: llmResponse.response,
+        text: combinedResponse.response,
         sender: 'bot',
         timestamp: new Date()
       }

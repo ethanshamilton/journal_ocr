@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { ModuleNamespace } from 'vite/types/hot.js'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -32,6 +33,18 @@ export interface LLMResponse {
   response: string
 }
 
+export interface CombinedRequest {
+  query: string
+  top_k?: number
+  provider: string
+  model: string
+}
+
+export interface CombinedResponse {
+  response: string
+  docs: [SimilarEntry, number][]
+}
+
 export const apiService = {
   async getSimilarEntries(request: QueryRequest): Promise<SimilarEntriesResponse> {
     const response = await api.post<SimilarEntriesResponse>('/similar_entries', {
@@ -43,6 +56,11 @@ export const apiService = {
 
   async queryLLM(request: LLMRequest): Promise<LLMResponse> {
     const response = await api.post<LLMResponse>('/query_llm', request)
+    return response.data
+  },
+
+  async queryJournal(request: CombinedRequest): Promise<CombinedResponse> {
+    const response = await api.post<CombinedResponse>('/query_journal', request)
     return response.data
   },
 }

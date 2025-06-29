@@ -12,7 +12,7 @@ if es.ping():
 else:
     logging.info("Could not connect.")
 
-def get_recent_entries(n: int = 10) -> list[dict]:
+def get_recent_entries(n: int = 7) -> list[dict]:
     """ Get the N most recent journals from elasticsearch. """
     response = es.search(
         index="journals",
@@ -21,9 +21,7 @@ def get_recent_entries(n: int = 10) -> list[dict]:
         query={"match_all": {}}
     )
 
-    response = [hit["_source"] for hit in response["hits"]["hits"]]
-
-    return response
+    return [(hit["_source"], hit["_score"]) for hit in response["hits"]["hits"]]
 
 def get_similar_entries(embedding: list[float], n: int) -> dict:
     """ Run vector search on the elasticsearch index.  """

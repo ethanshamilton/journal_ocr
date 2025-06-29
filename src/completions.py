@@ -10,6 +10,7 @@ from PIL import Image
 from io import BytesIO
 from google import genai
 from openai import OpenAI
+from baml_client import b
 from dotenv import load_dotenv
 from pdf2image import convert_from_path
 
@@ -116,6 +117,9 @@ def insert_transcription(file_path: str, transcription: str) -> None:
         f.writelines(new_lines)
 
     logging.info(f"Updated transcription in {file_path}")
+
+def intent_classifier(query: str) -> str:
+    return b.IntentClassifier(query)
 
 def query_llm(prompt: str, provider: str, model: str):
     """ Query any of the supported LLM providers and models. """

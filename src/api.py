@@ -2,8 +2,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.es_client import get_similar_entries
-from src.completions import get_embedding, query_llm
+from baml_client.types import Retrievers
+from es_client import get_similar_entries, get_recent_entries
+from completions import get_embedding, query_llm, intent_classifier
 
 app = FastAPI()
 
@@ -52,15 +53,22 @@ def _query_llm(req: LLMRequest) -> dict:
 
 @app.post("/query_journal")
 def query_journal(req: CombinedRequest) -> CombinedResponse:
-    # entry retrieval
-    query_embedding = get_embedding(req.query)
-    relevant_entries = get_similar_entries(query_embedding, req.top_k)
-    for entry, _ in relevant_entries:
+    # determine which retriever to use
+    query_intent = intent_classifier(req.query)
+
+    if query_intent == Retrievers.Vector:
+        query_embedding = get_embedding(req.query)
+        entries = get_similar_entries(query_embedding, req.top_k)
+    elif query_intent == Retrievers.Recent:
+        entries = get_recent_entries()
+
+    # process entries
+    for entry, _ in entries:
         if "embedding" in entry:
             del entry['embedding']
     
     entries_str = ""
-    for i, (entry, score) in enumerate(relevant_entries, 1):
+    for i, (entry, score) in enumerate(entries, 1):
         entries_str += f"Entry {i} (Score: {score}):\n"
         for k, v in entry.items():
             entries_str += f"  {k}: {v}\n"
@@ -76,4 +84,4 @@ def query_journal(req: CombinedRequest) -> CombinedResponse:
     """
 
     llm_response = query_llm(prompt, req.provider, req.model).content[0].text
-    return CombinedResponse(response=llm_response, docs=relevant_entries)
+    return CombinedResponse(response=llm_response, docs=entries)

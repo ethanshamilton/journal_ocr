@@ -11,6 +11,31 @@
   padding: 1rem;
   border-bottom: 1px solid #ccc;
   background-color: black;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-header select {
+  margin-left: 1rem;
+  padding: 0.4rem 1.2rem;
+  background: #23262f;
+  color: #eaeaea;
+  border: 1px solid #444;
+  border-radius: 6px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.chat-header select:focus {
+  border-color: #ae5d00;
+}
+
+.chat-header option,
+.chat-header optgroup {
+  background: #23262f;
+  color: #eaeaea;
 }
 
 .chat-header h3 {

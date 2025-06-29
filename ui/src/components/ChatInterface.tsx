@@ -4,6 +4,25 @@ import { apiService } from '../services/api'
 import type { Document } from '../types'
 import ReactMarkdown from 'react-markdown'
 
+const providers = [
+  {
+    label: "Anthropic",
+    value: "anthropic",
+    models: [
+      { label: "Claude Opus 4", value: "claude-opus-4-20250514" },
+      { label: "Claude Sonnet 4", value: "claude-sonnet-4-20250514" },
+    ],
+  },
+  {
+    label: "OpenAI",
+    value: "openai",
+    models: [
+      { label: "GPT-4.1", value: "gpt-4.1" },
+      { label: "GPT-4.5", value: "gpt-4.5" },
+    ],
+  },
+]
+
 interface Message {
   id: number
   text: string
@@ -16,6 +35,12 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
+
+  const [selectedModel, setSelectedModel] = useState({
+    provider: "anthropic",
+    model: "claude-opus-4-20250514"
+  })
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -47,8 +72,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
       const combinedResponse = await apiService.queryJournal({
           query,
           top_k: 5, 
-          provider: 'anthropic',
-          model: "claude-opus-4-20250514"
+          provider: selectedModel.provider,
+          model: selectedModel.model
         })
       
       // Prepare similar entries to be sent to DocumentViewer
@@ -92,6 +117,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
     <div className="chat-interface">
       <div className="chat-header">
         <h3>Journal Chat</h3>
+        <select
+          value={`${selectedModel.provider}:${selectedModel.model}`}
+          onChange={e => {
+            const[provider, model] = e.target.value.split(":");
+            setSelectedModel({ provider, model })
+          }}
+        >
+          {providers.map(provider => (
+            <optgroup key={provider.value} label={provider.label}>
+              {provider.models.map(model => (
+                <option
+                  key={model.value}
+                  value={`${provider.value}:${model.value}`}
+                >
+                  {model.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
       </div>
       
       <div className="chat-messages">

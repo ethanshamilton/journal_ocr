@@ -7,6 +7,11 @@ enum Retrievers {
       Gets the most recent articles. Recommended to use when the query has an element of
       recency to it, or when the user is asking for a response that could be confused if
       articles from different times are included.
+
+      Trigger words:
+      - Recently
+      - Lately
+      - Last {week, month, day, etc.}
     "#)
 }
 

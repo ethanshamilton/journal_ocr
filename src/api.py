@@ -83,5 +83,5 @@ def query_journal(req: CombinedRequest) -> CombinedResponse:
     {entries_str}
     """
 
-    llm_response = query_llm(prompt, req.provider, req.model).content[0].text
+    llm_response = query_llm(prompt, req.provider, req.model)
     return CombinedResponse(response=llm_response, docs=entries)

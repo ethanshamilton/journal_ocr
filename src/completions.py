@@ -130,7 +130,12 @@ def query_llm(prompt: str, provider: str, model: str):
             messages=[
                 {"role": "user", "content": prompt}
             ]
-        )
+        ).content[0].text
+    elif provider == "openai":
+        return openai_client.responses.create(
+            model=model,
+            input=prompt,
+        ).output_text
 
 def transcribe_images(b64str_images:list[str], tags:str) -> str:
     """ Given a list of images, transcribe them with GPT-4o. """

@@ -16,4 +16,4 @@ This vault contains code for transcribing my journals and interacting with the d
 
 ## Roadmap
 - Add tag retrieval based on entry tags. 
-- Add options to frontend to allow selection of different models. 
+- Add frontend and backend into docker network.

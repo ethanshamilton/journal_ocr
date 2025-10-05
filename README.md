@@ -16,4 +16,8 @@ This vault contains code for transcribing my journals and interacting with the d
 
 ## Roadmap
 - Add tag retrieval based on entry tags. 
+- Add specific date retrieval i.e. last month, last year, September 2021...
 - Add frontend and backend into docker network.
+- Implement chat history. 
+    - Start just with per-session chat. Include a button to clear history. 
+    - Store chats in elasticsearch so they can be loaded or searched later. 

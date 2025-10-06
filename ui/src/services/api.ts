@@ -1,5 +1,4 @@
 import axios from 'axios'
-import type { ModuleNamespace } from 'vite/types/hot.js'
 
 const API_BASE_URL = 'http://localhost:8000'
 

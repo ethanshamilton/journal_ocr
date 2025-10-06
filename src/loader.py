@@ -11,6 +11,8 @@ from datetime import datetime
 
 from dotenv import load_dotenv
 
+from es_client import create_chat_indexes
+
 load_dotenv()
 logging.basicConfig(filename="logs/es_load.log")
 
@@ -121,3 +123,4 @@ if __name__ == "__main__":
     wait_for_elasticsearch()
     index_notes()
     index_embeddings()
+    create_chat_indexes()

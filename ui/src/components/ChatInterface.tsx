@@ -77,7 +77,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
         })
       
       // Prepare similar entries to be sent to DocumentViewer
-      const similarDocs: Document[] = combinedResponse.docs.map(([entry, score], i) => ({
+      const similarDocs: Document[] = combinedResponse.docs.map(([entry], i) => ({
         id: i + 1,
         title: entry.title || `Similar Entry ${i + 1}`,
         content: entry.text || JSON.stringify(entry)

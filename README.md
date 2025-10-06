@@ -5,7 +5,7 @@ This vault contains code for transcribing my journals and interacting with the d
 
 ## Quick Start
 1. `./launch.sh` - runs transcription and embedding pipelines, starts docker network, and loads data.
-2. `cd ui && run npm dev` - starts frontend. I haven't integrated this with docker yet. 
+2. `cd ui && npm run dev` - starts frontend. I haven't integrated this with docker yet. 
 3. `cd src && uv run uvicorn api:app --reload` - starts backend API. Also not integrated with docker yet. 
 
 ## Current Capabilities
@@ -21,3 +21,4 @@ This vault contains code for transcribing my journals and interacting with the d
 - Implement chat history. 
     - Start just with per-session chat. Include a button to clear history. 
     - Store chats in elasticsearch so they can be loaded or searched later. 
+- Improve data loading speed via concurrency and batching

@@ -1,39 +1,20 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
 from baml_client.types import Retrievers
 from es_client import get_similar_entries, get_recent_entries
 from completions import get_embedding, query_llm, intent_classifier
+from models import QueryRequest, LLMRequest, ChatRequest, ChatResponse
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://frontend:80"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-class QueryRequest(BaseModel):
-    query: str
-    top_k: int = 5
-
-class LLMRequest(BaseModel):
-    prompt: str
-    provider: str
-    model: str
-
-class CombinedRequest(BaseModel):
-    query: str
-    top_k: int = 5
-    provider: str
-    model: str
-
-class CombinedResponse(BaseModel):
-    response: str
-    docs: list[tuple]
 
 @app.post("/similar_entries")
 def similar_entries(req: QueryRequest) -> dict:
@@ -52,7 +33,7 @@ def _query_llm(req: LLMRequest) -> dict:
     return { "response": response.content[0].text }
 
 @app.post("/query_journal")
-def query_journal(req: CombinedRequest) -> CombinedResponse:
+def query_journal(req: ChatRequest) -> ChatResponse:
     # determine which retriever to use
     query_intent = intent_classifier(req.query)
 
@@ -84,4 +65,4 @@ def query_journal(req: CombinedRequest) -> CombinedResponse:
     """
 
     llm_response = query_llm(prompt, req.provider, req.model)
-    return CombinedResponse(response=llm_response, docs=entries)
+    return ChatResponse(response=llm_response, docs=entries)

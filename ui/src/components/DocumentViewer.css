@@ -1,9 +1,7 @@
 .document-viewer {
-  width: 33.333%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #ccc;
   background-color: black;
 }
 

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Thread, ThreadMessage } from '../types'
+import type { Thread, Message } from '../types'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -91,8 +91,8 @@ export const apiService = {
     return response.data
   },
 
-  async getThreadMessages(threadId: string): Promise<ThreadMessage[]> {
-    const response = await api.get<ThreadMessage[]>(`/threads/${threadId}/messages`)
+  async getThreadMessages(threadId: string): Promise<Message[]> {
+    const response = await api.get<Message[]>(`/threads/${threadId}/messages`)
     return response.data
   },
 
@@ -104,8 +104,8 @@ export const apiService = {
     await api.put(`/threads/${threadId}`, { title })
   },
 
-  async addMessageToThread(threadId: string, role: string, content: string): Promise<ThreadMessage> {
-    const response = await api.post<ThreadMessage>(`/threads/${threadId}/messages`, {
+  async addMessageToThread(threadId: string, role: string, content: string): Promise<Message> {
+    const response = await api.post<Message>(`/threads/${threadId}/messages`, {
       role,
       content
     })

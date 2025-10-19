@@ -24,13 +24,22 @@ export class ThreadService {
     const threads = JSON.parse(stored) as Thread[]
     return threads.map((t: Thread) => ({
       ...t,
-      createdAt: new Date(t.createdAt),
-      updatedAt: new Date(t.updatedAt),
+      createdAt: this.parseDate(t.createdAt),
+      updatedAt: this.parseDate(t.updatedAt),
       messages: t.messages.map((m: Message) => ({
         ...m,
-        timestamp: new Date(m.timestamp)
+        timestamp: this.parseDate(m.timestamp)
       }))
     }))
+  }
+
+  private parseDate(dateInput: any): Date {
+    try {
+      const date = new Date(dateInput)
+      return isNaN(date.getTime()) ? new Date() : date
+    } catch {
+      return new Date()
+    }
   }
 
   getThread(id: string): Thread | null {

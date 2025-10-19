@@ -1,7 +1,7 @@
 import { ElasticsearchService } from './elasticsearch'
 import { LLMService } from './llm'
 import { ThreadService } from './threads'
-import type { ChatRequest, ChatResponse, JournalEntry, LLMConfig, Thread, Message } from '../types'
+import type { ChatRequest, ChatResponse, JournalEntry, LLMConfig, Thread, Message } from '../types/index.ts'
 
 export class ChatService {
   private esService = new ElasticsearchService()

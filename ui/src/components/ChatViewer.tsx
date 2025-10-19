@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import './ChatViewer.css'
 import { ThreadService } from '../services/threads'
-import type { Thread, Message } from '../types'
+import type { Thread, Message } from '../types/index.ts'
 
 interface ChatViewerProps {
   onLoadThread: (threadId: string, messages: Message[]) => void
@@ -130,7 +130,7 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
               </button>
             </div>
             <div className="thread-meta">
-              <span>{new Date(thread.updatedAt).toLocaleDateString()}</span>
+              <span>{thread.updatedAt.toLocaleDateString()}</span>
             </div>
           </div>
         ))}

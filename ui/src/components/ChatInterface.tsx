@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { ChatService } from '../services/chat'
 import { ThreadService } from '../services/threads'
-import type { JournalEntry, Thread, LLMConfig, Message } from '../types'
+import type { JournalEntry, LLMConfig, Message } from '../types'
 import './ChatInterface.css'
 
 const providers = [

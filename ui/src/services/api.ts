@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { Thread, ThreadMessage } from '../types'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -32,16 +33,24 @@ export interface LLMResponse {
   response: string
 }
 
-export interface CombinedRequest {
+export interface ChatRequest {
   query: string
   top_k?: number
   provider: string
   model: string
+  thread_id?: string
+  message_history?: Array<{
+    sender: 'user' | 'bot'
+    text: string
+    timestamp: Date
+  }>
+  existing_docs?: Document[]
 }
 
-export interface CombinedResponse {
+export interface ChatResponse {
   response: string
   docs: [SimilarEntry, number][]
+  thread_id?: string
 }
 
 export const apiService = {
@@ -58,8 +67,48 @@ export const apiService = {
     return response.data
   },
 
-  async queryJournal(request: CombinedRequest): Promise<CombinedResponse> {
-    const response = await api.post<CombinedResponse>('/query_journal', request)
+  async queryJournal(request: ChatRequest): Promise<ChatResponse> {
+    const response = await api.post<ChatResponse>('/query_journal', request)
+    return response.data
+  },
+
+  // Thread management methods
+  async createThread(title?: string, initialMessage?: string): Promise<{ thread_id: string; created_at: string }> {
+    const response = await api.post('/threads', {
+      title,
+      initial_message: initialMessage
+    })
+    return response.data
+  },
+
+  async getThreads(): Promise<Thread[]> {
+    const response = await api.get<Thread[]>('/threads')
+    return response.data
+  },
+
+  async getThread(threadId: string): Promise<Thread> {
+    const response = await api.get<Thread>(`/threads/${threadId}`)
+    return response.data
+  },
+
+  async getThreadMessages(threadId: string): Promise<ThreadMessage[]> {
+    const response = await api.get<ThreadMessage[]>(`/threads/${threadId}/messages`)
+    return response.data
+  },
+
+  async deleteThread(threadId: string): Promise<void> {
+    await api.delete(`/threads/${threadId}`)
+  },
+
+  async updateThreadTitle(threadId: string, title: string): Promise<void> {
+    await api.put(`/threads/${threadId}`, { title })
+  },
+
+  async addMessageToThread(threadId: string, role: string, content: string): Promise<ThreadMessage> {
+    const response = await api.post<ThreadMessage>(`/threads/${threadId}/messages`, {
+      role,
+      content
+    })
     return response.data
   },
 }

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './ChatInterface.css'
 import { apiService } from '../services/api'
-import type { Document } from '../types'
+import type { Document as CustomDocument, ThreadMessage } from '../types'
 import ReactMarkdown from 'react-markdown'
 
 const providers = [
@@ -9,8 +9,9 @@ const providers = [
     label: "Anthropic",
     value: "anthropic",
     models: [
+      { label: "Claude Sonnet 4.5", value: "claude-sonnet-4-5-20250929" },
       { label: "Claude Opus 4", value: "claude-opus-4-20250514" },
-      { label: "Claude Sonnet 4", value: "claude-sonnet-4-20250514" },
+      { label: "Claude Sonnet 4", value: "claude-sonnet-4-20250514" }
     ],
   },
   {
@@ -31,10 +32,11 @@ interface Message {
 }
 
 interface ChatInterfaceProps {
-  setDocuments: React.Dispatch<React.SetStateAction<Document[]>>
+  setDocuments: React.Dispatch<React.SetStateAction<CustomDocument[]>>
+  onLoadThread?: (threadId: string, messages: ThreadMessage[]) => void
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThread }) => {
 
   const [selectedModel, setSelectedModel] = useState({
     provider: "anthropic",
@@ -52,6 +54,60 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
   const [inputText, setInputText] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
+  const [isThreadSaved, setIsThreadSaved] = useState(false)
+  const [retrievedDocs, setRetrievedDocs] = useState<CustomDocument[]>([])
+
+  const loadThread = (threadId: string, threadMessages: ThreadMessage[]) => {
+    setCurrentThreadId(threadId)
+    setIsThreadSaved(true) // loaded threads are already saved
+    const convertedMessages = threadMessages.map((msg, index) => ({
+      id: index + 1,
+      text: msg.content,
+      sender: msg.role === 'user' ? 'user' as const : 'bot' as const,
+      timestamp: new Date(msg.timestamp)
+    }))
+    setMessages(convertedMessages)
+    setRetrievedDocs([]) // clear retrieved docs when loading a thread
+  }
+
+  // expose loadThread function to parent
+  useEffect(() => {
+    if (onLoadThread) {
+      // this is a bit hacky but works for now
+      (window as any).loadThreadIntoChat = loadThread
+    }
+  }, [onLoadThread])
+
+  const saveChat = async () => {
+    const response = await apiService.createThread()
+    setCurrentThreadId(response.thread_id)
+    setIsThreadSaved(true)
+    
+    // save all existing messages to the new thread
+    try {
+      for (const message of messages) {
+        if (message.sender !== 'bot' || message.text !== "Hello! I'm here to help you search through your documents. What would you like to know?") {
+          await apiService.addMessageToThread(response.thread_id, message.sender === 'user' ? 'user' : 'assistant', message.text)
+        }
+      }
+    } catch (error) {
+      console.error('Error saving existing messages to thread:', error)
+    }
+  }
+
+  const startNewChat = () => {
+    setCurrentThreadId(null)
+    setIsThreadSaved(false)
+    setRetrievedDocs([]) // clear retrieved docs for new chat
+    setMessages([{
+      id: 1,
+      text: "Hello! I'm here to help you search through your documents. What would you like to know?",
+      sender: 'bot',
+      timestamp: new Date()
+    }])
+  }
+
   const sendMessage = async () => {
     if (!inputText.trim()) return
 
@@ -68,30 +124,71 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
     setIsLoading(true)
 
     try {
-      // query journal
-      const combinedResponse = await apiService.queryJournal({
-          query,
-          top_k: 5, 
-          provider: selectedModel.provider,
-          model: selectedModel.model
-        })
+      let similarDocs: CustomDocument[] = []
+      let responseText = ""
       
-      // Prepare similar entries to be sent to DocumentViewer
-      const similarDocs: Document[] = combinedResponse.docs.map(([entry], i) => ({
-        id: i + 1,
-        title: entry.title || `Similar Entry ${i + 1}`,
-        content: entry.text || JSON.stringify(entry)
-      }))
-
-      setDocuments(similarDocs)
-
-      const botMessage: Message = {
-        id: Date.now() + 1,
-        text: combinedResponse.response,
-        sender: 'bot',
-        timestamp: new Date()
+      // only do retrieval if this is the first message or we don't have docs yet
+      if (retrievedDocs.length === 0) {
+        // query journal with retrieval
+        const combinedResponse = await apiService.queryJournal({
+            query,
+            top_k: 5, 
+            provider: selectedModel.provider,
+            model: selectedModel.model,
+            thread_id: currentThreadId || "",
+            message_history: isThreadSaved ? undefined : messages // only send history for temporary chats
+          })
+        
+        // Prepare similar entries to be sent to DocumentViewer
+        similarDocs = combinedResponse.docs.map(([entry], i) => ({
+          id: i + 1,
+          title: entry.title || `Similar Entry ${i + 1}`,
+          content: entry.text || JSON.stringify(entry)
+        }))
+        
+        setRetrievedDocs(similarDocs)
+        setDocuments(similarDocs)
+        responseText = combinedResponse.response
+        
+        // get the response from the combined response
+        const botMessage: Message = {
+          id: Date.now() + 1,
+          text: combinedResponse.response,
+          sender: 'bot',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, botMessage])
+      } else {
+        // use existing docs, just query with context
+        const response = await apiService.queryJournal({
+            query,
+            top_k: 0, // no retrieval needed
+            provider: selectedModel.provider,
+            model: selectedModel.model,
+            thread_id: currentThreadId || "",
+            message_history: isThreadSaved ? undefined : messages,
+            existing_docs: retrievedDocs as any // pass existing docs
+          })
+        
+        responseText = response.response
+        const botMessage: Message = {
+          id: Date.now() + 1,
+          text: response.response,
+          sender: 'bot',
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, botMessage])
       }
-      setMessages(prev => [...prev, botMessage])
+
+      // save messages to thread if we have one and it's saved
+      if (currentThreadId && isThreadSaved) {
+        try {
+          await apiService.addMessageToThread(currentThreadId, 'user', query)
+          await apiService.addMessageToThread(currentThreadId, 'assistant', responseText)
+        } catch (error) {
+          console.error('Error saving messages to thread:', error)
+        }
+      }
     } catch (error) {
       console.error('Error querying API:', error)
       const errorMessage: Message = {
@@ -116,7 +213,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments }) => {
   return (
     <div className="chat-interface">
       <div className="chat-header">
-        <h3>Journal Chat</h3>
+        <div className="chat-title">
+          <h3>Journal Chat</h3>
+          {currentThreadId && (
+            <div className="thread-info">
+              <span className="thread-id">Thread: {currentThreadId.slice(0, 8)}...</span>
+            </div>
+          )}
+        </div>
+        <div className="chat-actions">
+          {!isThreadSaved && (
+            <button onClick={saveChat} className="save-chat-btn">
+              Save Chat
+            </button>
+          )}
+          <button onClick={startNewChat} className="new-chat-btn">
+            New Chat
+          </button>
+        </div>
         <select
           value={`${selectedModel.provider}:${selectedModel.model}`}
           onChange={e => {

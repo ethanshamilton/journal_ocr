@@ -19,6 +19,7 @@ x.log
 
 # Sensitive files
 .env
+.env.*
 
 # Mac
 .DS_Store/

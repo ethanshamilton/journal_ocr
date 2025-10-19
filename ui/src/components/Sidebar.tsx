@@ -2,11 +2,11 @@ import { useState } from 'react'
 import './Sidebar.css'
 import DocumentViewer from './DocumentViewer'
 import ChatViewer from './ChatViewer'
-import type { Document, ThreadMessage } from '../types'
+import type { JournalEntry, Message } from '../types'
 
 interface SidebarProps {
-  documents: Document[]
-  onLoadThread: (threadId: string, messages: ThreadMessage[]) => void
+  documents: JournalEntry[]
+  onLoadThread: (threadId: string, messages: Message[]) => void
 }
 
 type TabType = 'documents' | 'chats'

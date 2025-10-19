@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import './DocumentViewer.css'
-import type { Document } from '../types'
+import type { JournalEntry } from '../types'
 
 interface DocumentViewerProps {
-  documents: Document[]
+  documents: JournalEntry[]
 }
 
 const DocumentViewer = ({ documents }: DocumentViewerProps) => {
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [selectedDocument, setSelectedDocument] = useState<JournalEntry | null>(null)
 
   return (
     <div className="document-viewer">
@@ -30,11 +30,20 @@ const DocumentViewer = ({ documents }: DocumentViewerProps) => {
         {selectedDocument ? (
           <div>
             <h3>{selectedDocument.title}</h3>
+            <div className="document-meta">
+              <p><strong>Date:</strong> {selectedDocument.date}</p>
+              {selectedDocument.tags && selectedDocument.tags.length > 0 && (
+                <p><strong>Tags:</strong> {selectedDocument.tags.join(', ')}</p>
+              )}
+              {selectedDocument.score && (
+                <p><strong>Relevance Score:</strong> {selectedDocument.score.toFixed(3)}</p>
+              )}
+            </div>
             <div 
               className="content"
               style={{ whiteSpace : 'pre-line' }}
             >
-              {selectedDocument.content}
+              {selectedDocument.text}
             </div>
           </div>
         ) : (

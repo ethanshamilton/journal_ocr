@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import './ChatViewer.css'
-import { apiService } from '../services/api'
-import type { Thread, ThreadMessage } from '../types'
+import { ThreadService } from '../services/threads'
+import type { Thread, Message } from '../types'
 
 interface ChatViewerProps {
-  onLoadThread: (threadId: string, messages: ThreadMessage[]) => void
+  onLoadThread: (threadId: string, messages: Message[]) => void
 }
 
 const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
@@ -12,15 +12,17 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
   const [loading, setLoading] = useState(false)
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
+  
+  const threadService = new ThreadService()
 
   useEffect(() => {
     loadThreads()
   }, [])
 
-  const loadThreads = async () => {
+  const loadThreads = () => {
     try {
       setLoading(true)
-      const threadsData = await apiService.getThreads()
+      const threadsData = threadService.getThreads()
       setThreads(threadsData)
     } catch (error) {
       console.error('Error loading threads:', error)
@@ -29,48 +31,50 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
     }
   }
 
-  const handleLoadThread = async (threadId: string, existingMessages: ThreadMessage[]) => {
+  const handleLoadThread = (threadId: string) => {
     try {
-      // if we don't have messages yet, fetch them
-      let messages = existingMessages
-      if (messages.length === 0) {
-        messages = await apiService.getThreadMessages(threadId)
+      const thread = threadService.getThread(threadId)
+      if (thread) {
+        onLoadThread(threadId, thread.messages)
       }
-      onLoadThread(threadId, messages)
     } catch (error) {
       console.error('Error loading thread messages:', error)
     }
   }
 
-  const handleDeleteThread = async (threadId: string) => {
+  const handleDeleteThread = (threadId: string) => {
     try {
-      await apiService.deleteThread(threadId)
-      setThreads(threads.filter(t => t.thread_id !== threadId))
+      const success = threadService.deleteThread(threadId)
+      if (success) {
+        setThreads(threads.filter(t => t.id !== threadId))
+      }
     } catch (error) {
       console.error('Error deleting thread:', error)
     }
   }
 
   const handleStartEdit = (thread: Thread) => {
-    setEditingThreadId(thread.thread_id)
+    setEditingThreadId(thread.id)
     setEditTitle(thread.title)
   }
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = () => {
     if (!editingThreadId || !editTitle.trim()) {
       handleCancelEdit()
       return
     }
     
     try {
-      await apiService.updateThreadTitle(editingThreadId, editTitle.trim())
-      setThreads(threads.map(t => 
-        t.thread_id === editingThreadId 
-          ? { ...t, title: editTitle.trim() }
-          : t
-      ))
-      setEditingThreadId(null)
-      setEditTitle('')
+      const success = threadService.updateThreadTitle(editingThreadId, editTitle.trim())
+      if (success) {
+        setThreads(threads.map(t => 
+          t.id === editingThreadId 
+            ? { ...t, title: editTitle.trim() }
+            : t
+        ))
+        setEditingThreadId(null)
+        setEditTitle('')
+      }
     } catch (error) {
       console.error('Error updating thread title:', error)
       handleCancelEdit()
@@ -93,13 +97,13 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
       <div className="thread-items">
         {threads.map((thread) => (
           <div
-            key={thread.thread_id}
+            key={thread.id}
             className="thread-item"
-            onClick={() => handleLoadThread(thread.thread_id, [])}
+            onClick={() => handleLoadThread(thread.id)}
             onDoubleClick={() => handleStartEdit(thread)}
           >
             <div className="thread-header">
-              {editingThreadId === thread.thread_id ? (
+              {editingThreadId === thread.id ? (
                 <input
                   type="text"
                   value={editTitle}
@@ -119,14 +123,14 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
                 className="delete-thread"
                 onClick={(e) => {
                   e.stopPropagation()
-                  handleDeleteThread(thread.thread_id)
+                  handleDeleteThread(thread.id)
                 }}
               >
                 ×
               </button>
             </div>
             <div className="thread-meta">
-              <span>{new Date(thread.updated_at).toLocaleDateString()}</span>
+              <span>{new Date(thread.updatedAt).toLocaleDateString()}</span>
             </div>
           </div>
         ))}

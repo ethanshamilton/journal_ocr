@@ -100,6 +100,10 @@ export const apiService = {
     await api.delete(`/threads/${threadId}`)
   },
 
+  async updateThreadTitle(threadId: string, title: string): Promise<void> {
+    await api.put(`/threads/${threadId}`, { title })
+  },
+
   async addMessageToThread(threadId: string, role: string, content: string): Promise<ThreadMessage> {
     const response = await api.post<ThreadMessage>(`/threads/${threadId}/messages`, {
       role,

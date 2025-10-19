@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import './ChatInterface.css'
 import { apiService } from '../services/api'
-import type { Document, ThreadMessage } from '../types'
+import type { Document as CustomDocument, ThreadMessage } from '../types'
 import ReactMarkdown from 'react-markdown'
 
 const providers = [
@@ -32,7 +32,7 @@ interface Message {
 }
 
 interface ChatInterfaceProps {
-  setDocuments: React.Dispatch<React.SetStateAction<Document[]>>
+  setDocuments: React.Dispatch<React.SetStateAction<CustomDocument[]>>
   onLoadThread?: (threadId: string, messages: ThreadMessage[]) => void
 }
 
@@ -56,7 +56,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
 
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
   const [isThreadSaved, setIsThreadSaved] = useState(false)
-  const [retrievedDocs, setRetrievedDocs] = useState<Document[]>([])
+  const [retrievedDocs, setRetrievedDocs] = useState<CustomDocument[]>([])
 
   const loadThread = (threadId: string, threadMessages: ThreadMessage[]) => {
     setCurrentThreadId(threadId)
@@ -124,7 +124,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     setIsLoading(true)
 
     try {
-      let similarDocs: Document[] = []
+      let similarDocs: CustomDocument[] = []
       let responseText = ""
       
       // only do retrieval if this is the first message or we don't have docs yet
@@ -167,7 +167,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
             model: selectedModel.model,
             thread_id: currentThreadId || "",
             message_history: isThreadSaved ? undefined : messages,
-            existing_docs: retrievedDocs // pass existing docs
+            existing_docs: retrievedDocs as any // pass existing docs
           })
         
         responseText = response.response

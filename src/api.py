@@ -3,9 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import json
 
 from baml_client.types import Retrievers
-from es_client import get_similar_entries, get_recent_entries, create_thread, get_threads, get_thread, get_thread_messages, save_message, delete_thread
+from es_client import get_similar_entries, get_recent_entries, create_thread, get_threads, get_thread, get_thread_messages, save_message, delete_thread, es
 from completions import get_embedding, query_llm, intent_classifier
-from models import QueryRequest, LLMRequest, ChatRequest, ChatResponse, CreateThreadRequest, CreateThreadResponse, Thread, Message, AddMessageRequest
+from models import QueryRequest, LLMRequest, ChatRequest, ChatResponse, CreateThreadRequest, CreateThreadResponse, Thread, Message, AddMessageRequest, UpdateThreadRequest
 
 app = FastAPI()
 
@@ -162,6 +162,21 @@ def add_message_to_thread(thread_id: str, req: AddMessageRequest) -> Message:
     
     message_doc = save_message(thread_id, req.role, req.content)
     return Message(**message_doc)
+
+@app.put("/threads/{thread_id}")
+def update_thread_title(thread_id: str, req: UpdateThreadRequest) -> dict:
+    """Update thread title"""
+    # verify thread exists
+    if not get_thread(thread_id):
+        raise HTTPException(status_code=404, detail="Thread not found")
+    
+    # update thread title in elasticsearch
+    es.update(
+        index="threads",
+        id=thread_id,
+        body={"doc": {"title": req.title}}
+    )
+    return {"message": "Thread title updated successfully"}
 
 @app.delete("/threads/{thread_id}")
 def delete_thread_endpoint(thread_id: str) -> dict:

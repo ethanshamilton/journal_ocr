@@ -51,3 +51,6 @@ class CreateThreadResponse(BaseModel):
 class AddMessageRequest(BaseModel):
     role: str
     content: str
+
+class UpdateThreadRequest(BaseModel):
+    title: str

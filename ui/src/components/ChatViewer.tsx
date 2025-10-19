@@ -10,6 +10,8 @@ interface ChatViewerProps {
 const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(false)
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
 
   useEffect(() => {
     loadThreads()
@@ -49,6 +51,37 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
     }
   }
 
+  const handleStartEdit = (thread: Thread) => {
+    setEditingThreadId(thread.thread_id)
+    setEditTitle(thread.title)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingThreadId || !editTitle.trim()) {
+      handleCancelEdit()
+      return
+    }
+    
+    try {
+      await apiService.updateThreadTitle(editingThreadId, editTitle.trim())
+      setThreads(threads.map(t => 
+        t.thread_id === editingThreadId 
+          ? { ...t, title: editTitle.trim() }
+          : t
+      ))
+      setEditingThreadId(null)
+      setEditTitle('')
+    } catch (error) {
+      console.error('Error updating thread title:', error)
+      handleCancelEdit()
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingThreadId(null)
+    setEditTitle('')
+  }
+
   return (
     <div className="chat-viewer">
       <div className="thread-list-header">
@@ -63,9 +96,25 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
             key={thread.thread_id}
             className="thread-item"
             onClick={() => handleLoadThread(thread.thread_id, [])}
+            onDoubleClick={() => handleStartEdit(thread)}
           >
             <div className="thread-header">
-              <h4>{thread.title}</h4>
+              {editingThreadId === thread.thread_id ? (
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onBlur={handleSaveEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveEdit()
+                    if (e.key === 'Escape') handleCancelEdit()
+                  }}
+                  className="edit-title-input"
+                  autoFocus
+                />
+              ) : (
+                <h4>{thread.title}</h4>
+              )}
               <button
                 className="delete-thread"
                 onClick={(e) => {

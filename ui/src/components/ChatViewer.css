@@ -93,3 +93,14 @@
   color: #888;
 }
 
+.edit-title-input {
+  background: none;
+  border: 1px solid #ff8800;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 2px 4px;
+  width: 100%;
+  outline: none;
+}
+

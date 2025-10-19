@@ -13,6 +13,10 @@ enum Retrievers {
       - Lately
       - Last {week, month, day, etc.}
     "#)
+    // NoRetriever @description(#"
+    //   It may not be necessary to retrieve any context from the data, for example if the user
+    //   is asking a follow-up question to prior messages or a general/unrelated question.
+    // "#)
 }
 
 function IntentClassifier(query: string) -> Retrievers {

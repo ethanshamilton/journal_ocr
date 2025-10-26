@@ -1,7 +1,24 @@
+from enum import Enum
 from typing import Optional
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+class Retrievers(str, Enum):
+    RECENT = "recent"
+    VECTOR = "vector"
+    # RECENT = Field(
+    #     "recent", 
+    #     description="Retrieves most recent journal entries. Trigger words: recently, lately, over the past N time frame, etc."
+    # )
+    # # DATE = Field("date", description="Retrieves journal entries from a specific date range")
+    # VECTOR = Field(
+    #     "vector", 
+    #     description="Uses vector similarity to retrieve semantically similar documents. Use this as a default option."
+    # )
+
+class QueryIntent(BaseModel):
+    intent: Retrievers
 
 class QueryRequest(BaseModel):
     query: str
@@ -20,6 +37,9 @@ class ChatRequest(BaseModel):
     thread_id: Optional[str]
     message_history: Optional[list[dict]] = None
     existing_docs: Optional[list[dict]] = None
+
+class DirectChatResponse(BaseModel):
+    response: str
 
 class ChatResponse(BaseModel):
     response: str

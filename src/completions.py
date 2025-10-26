@@ -1,17 +1,19 @@
 # transcribe.py
 # functions for image transcription
 import os
+import instructor
 import yaml
 import time
 import base64
 import logging
 import anthropic
 from PIL import Image
+from PIL.Image import Image as PILImage
 from io import BytesIO
 from google import genai
 from openai import OpenAI
-from baml_client import b
 from dotenv import load_dotenv
+from models import ChatRequest, DirectChatResponse, QueryIntent
 from pdf2image import convert_from_path
 
 load_dotenv()
@@ -43,7 +45,7 @@ def encode_entry(file_path:str, output_format:str="PNG") -> list[str]:
         logging.error(f"Error encoding file {file_path}: {str(e)}")
         raise
 
-def encode_image(image:Image, output_format:str="PNG") -> str:
+def encode_image(image:PILImage, output_format:str="PNG") -> str:
     """ Encode a PIL Image object to base64 string. """
     buffered = BytesIO()
     image.save(buffered, format=output_format)
@@ -57,11 +59,14 @@ def get_embedding(text: str) -> list[float]:
             model="gemini-embedding-exp-03-07",
             contents=text,
         )
-        return response.embeddings[0].values
+        if response.embeddings and len(response.embeddings) > 0:
+            return response.embeddings[0].values
+        else:
+            raise ValueError("No embeddings returned from API")
     except Exception as _:
         print("Rate limited... retrying in 5")
         time.sleep(5)
-        get_embedding(text)
+        return get_embedding(text)
 
 def insert_transcription(file_path: str, transcription: str) -> None:
     """
@@ -119,7 +124,12 @@ def insert_transcription(file_path: str, transcription: str) -> None:
     logging.info(f"Updated transcription in {file_path}")
 
 def intent_classifier(query: str) -> str:
-    return b.IntentClassifier(query)
+    client = instructor.from_provider("anthropic/claude-haiku-4-5")
+    response = client.chat.completions.create(
+        response_model=QueryIntent,
+        messages=[{"role": "user", "content": f"Determine which retrieval method is best for the following query: {query}"}]
+    )
+    return response.intent
 
 def query_llm(prompt: str, provider: str, model: str):
     """ Query any of the supported LLM providers and models. """
@@ -136,6 +146,38 @@ def query_llm(prompt: str, provider: str, model: str):
             model=model,
             input=prompt,
         ).output_text
+
+def chat_response(request: ChatRequest, chat_history: list, entries_str: str) -> str:
+    client = instructor.from_provider(f"{request.provider}/{request.model}")
+    
+    # prepare messages list
+    chat_history.append({
+        "role": "user",
+        "content": f"""
+        <QUERY>{request.query}</QUERY>
+        """
+    })
+
+    # update entries in chat history; remove old entries and load new ones
+    chat_history = [msg for msg in chat_history if "<ENTRIES>" not in msg.get("content", "")]
+    chat_history.append({
+        "role": "user",
+        "content": f"<ENTRIES>{entries_str}</ENTRIES>"
+    })
+    
+    response = client.chat.completions.create(
+        response_model=DirectChatResponse,
+        messages=chat_history,
+    )
+
+    print("\n---")
+    print("PRINTING CHAT HISTORY")
+    print("---\n")
+
+    for msg in chat_history:
+        print(f"role: {msg['role']}\ncontent: {msg['content'][:100]}...\n")
+
+    return response.response
 
 def transcribe_images(b64str_images:list[str], tags:str) -> str:
     """ Given a list of images, transcribe them with GPT-4o. """

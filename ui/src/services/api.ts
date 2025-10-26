@@ -40,7 +40,7 @@ export interface ChatRequest {
   model: string
   thread_id?: string
   message_history?: Array<{
-    sender: 'user' | 'bot'
+    sender: 'user' | 'assistant'
     text: string
     timestamp: Date
   }>

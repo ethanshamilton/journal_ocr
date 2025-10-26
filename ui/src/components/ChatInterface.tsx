@@ -27,7 +27,7 @@ const providers = [
 interface Message {
   id: number
   text: string
-  sender: 'user' | 'bot'
+  sender: 'user' | 'assistant'
   timestamp: Date
 }
 
@@ -47,7 +47,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     {
       id: 1,
       text: "Hello! I'm here to help you search through your documents. What would you like to know?",
-      sender: 'bot',
+      sender: 'assistant',
       timestamp: new Date()
     }
   ])
@@ -64,7 +64,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     const convertedMessages = threadMessages.map((msg, index) => ({
       id: index + 1,
       text: msg.content,
-      sender: msg.role === 'user' ? 'user' as const : 'bot' as const,
+      sender: msg.role === 'user' ? 'user' as const : 'assistant' as const,
       timestamp: new Date(msg.timestamp)
     }))
     setMessages(convertedMessages)
@@ -87,7 +87,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     // save all existing messages to the new thread
     try {
       for (const message of messages) {
-        if (message.sender !== 'bot' || message.text !== "Hello! I'm here to help you search through your documents. What would you like to know?") {
+        if (message.sender !== 'assistant' || message.text !== "Hello! I'm here to help you search through your documents. What would you like to know?") {
           await apiService.addMessageToThread(response.thread_id, message.sender === 'user' ? 'user' : 'assistant', message.text)
         }
       }
@@ -103,7 +103,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     setMessages([{
       id: 1,
       text: "Hello! I'm here to help you search through your documents. What would you like to know?",
-      sender: 'bot',
+      sender: 'assistant',
       timestamp: new Date()
     }])
   }
@@ -154,7 +154,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
         const botMessage: Message = {
           id: Date.now() + 1,
           text: combinedResponse.response,
-          sender: 'bot',
+          sender: 'assistant',
           timestamp: new Date()
         }
         setMessages(prev => [...prev, botMessage])
@@ -174,7 +174,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
         const botMessage: Message = {
           id: Date.now() + 1,
           text: response.response,
-          sender: 'bot',
+          sender: 'assistant',
           timestamp: new Date()
         }
         setMessages(prev => [...prev, botMessage])
@@ -194,7 +194,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
       const errorMessage: Message = {
         id: Date.now() + 1,
         text: 'Sorry, I encountered an error while processing your request. Please make sure the backend is running.',
-        sender: 'bot',
+        sender: 'assistant',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])

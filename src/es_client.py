@@ -6,7 +6,12 @@ from typing import Optional
 
 from elasticsearch import Elasticsearch
 
+from models import ChatRequest, Retrievers
+from completions import get_embedding, intent_classifier
+
 logging.basicConfig(filename="x.log")
+
+### Elasticsearch Setup
 
 es = Elasticsearch("http://localhost:9200")
 
@@ -48,6 +53,8 @@ def create_chat_indexes() -> None:
         es.indices.create(index="messages", body=messages_mapping)
         logging.info("Created messages index")
 
+### Search and Retrieval
+
 def get_recent_entries(n: int = 7) -> list[dict]:
     """ Get the N most recent journals from elasticsearch. """
     response = es.search(
@@ -77,7 +84,47 @@ def get_similar_entries(embedding: list[float], n: int) -> dict:
 
     return [(hit["_source"], hit["_score"]) for hit in response["hits"]["hits"]]
 
-# Thread management functions
+def retrieve_docs(req: ChatRequest) -> dict:
+    """Retrieve relevant documents based on query intent"""
+    entries = []
+    entries_str = ""
+    
+    # if we have existing docs, use those instead of doing retrieval
+    if req.existing_docs:
+        entries_str = "Here are the relevant journal entries from our previous conversation:\n"
+        for i, doc in enumerate(req.existing_docs, 1):
+            entries_str += f"Entry {i}:\n"
+            entries_str += f"  title: {doc.get('title', 'Untitled')}\n"
+            entries_str += f"  content: {doc.get('content', '')}\n"
+            entries_str += "\n"
+    else:
+        # do normal retrieval
+        query_intent = intent_classifier(req.query)
+
+        if query_intent == Retrievers.VECTOR:
+            query_embedding = get_embedding(req.query)
+            entries = get_similar_entries(query_embedding, req.top_k)
+        elif query_intent == Retrievers.RECENT:
+            entries = get_recent_entries()
+
+        # process entries
+        for entry, _ in entries:
+            if "embedding" in entry:
+                del entry['embedding']
+        
+        for i, (entry, score) in enumerate(entries, 1):
+            entries_str += f"Entry {i} (Score: {score}):\n"
+            for k, v in entry.items():
+                entries_str += f"  {k}: {v}\n"
+            entries_str += "\n"
+    
+    return {
+        "entries": entries,
+        "entries_str": entries_str
+    }
+
+### Thread Management
+
 def create_thread(title: Optional[str] = None, initial_message: Optional[str] = None) -> dict:
     """Create a new thread in elasticsearch"""
     thread_id = str(uuid.uuid4())

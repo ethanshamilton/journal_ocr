@@ -1,14 +1,19 @@
+from datetime import datetime
+import json
+import hashlib
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from es_client import (
-    get_similar_entries, create_thread, retrieve_docs,
+    create_thread, retrieve_docs, get_entries_by_date_range,
     get_threads, get_thread, get_thread_messages,
     save_message, delete_thread, es
 )
-from completions import get_embedding, query_llm, chat_response
+from completions import chat_response, comprehensive_analysis
 from models import (
-    QueryRequest, LLMRequest, ChatRequest, ChatResponse, 
+    ChatRequest, ChatResponse, 
     CreateThreadRequest, CreateThreadResponse, Thread, 
     Message, AddMessageRequest, UpdateThreadRequest
 )
@@ -23,21 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/similar_entries")
-def similar_entries(req: QueryRequest) -> dict:
-    """ Returns K-nearest neighbors of query.  """
-    embedding = get_embedding(req.query)
-    results = get_similar_entries(embedding, req.top_k)
-    for entry, _ in results:
-        if "embedding" in entry:
-            del entry['embedding']
-    return { "results": results }
-
-@app.post("/query_llm")
-def _query_llm(req: LLMRequest) -> dict:
-    """ General LLM query endpoint. """
-    response = query_llm(req.prompt, req.provider, req.model)
-    return { "response": response.content[0].text }
+### completion endpoints
 
 @app.post("/journal_chat")
 async def journal_chat(request: ChatRequest) -> ChatResponse:
@@ -46,39 +37,105 @@ async def journal_chat(request: ChatRequest) -> ChatResponse:
     entries = retrieval_result["entries"]
     entries_str = retrieval_result["entries_str"]
 
-    # get thread history from elasticsearch if present
-    es_messages = []
-    if request.thread_id:
-        try:
-            thread_messages = get_thread_messages(request.thread_id)
-            if thread_messages:
-                for msg in thread_messages:
-                    role = msg.get("role", "user")
-                    if role not in ["user", "assistant"]:
-                        role = "user"
-                    content = msg.get("content", "")
-                    es_messages.append({"role": role, "content": content})
-        except Exception as e:
-            print(f"Error loading thread messages: {e}")
-
-    # also include message history from request if provided (for temporary chats)
-    temp_messages = []
-    if request.message_history:
-        for msg in request.message_history:
-            role = msg.get("sender", "user")
-            if role not in ["user", "assistant"]:
-                role = "user"
-            content = msg.get("text", "")
-            temp_messages.append({"role": role, "content": content})
-
-    chat_history = es_messages + temp_messages
+    # prepare chat history
+    chat_history = load_chat_history(request)
 
     # generate response
     llm_response = chat_response(request, chat_history, entries_str)
 
     return ChatResponse(response=llm_response, docs=entries, thread_id=request.thread_id)
 
-# Thread management endpoints
+@app.post("/comprehensive_analysis")
+async def comprehensive_journal_analysis(request: ChatRequest) -> dict:
+    # create cache key based on query and model
+    cache_key = hashlib.md5(f"{request.query}_{request.provider}_{request.model}".encode()).hexdigest()
+    cache_file = f"data/comprehensive_analysis_{cache_key}.json"
+    
+    # check if cached result exists
+    if os.path.exists(cache_file):
+        print(f"loading cached analysis from {cache_file}")
+        with open(cache_file, 'r') as f:
+            cached_data = json.load(f)
+            return cached_data
+    
+    print(f"running comprehensive analysis (will cache to {cache_file})")
+    
+    # prepare chat history
+    chat_history = load_chat_history(request)
+
+    # iterate through years from 2018 to present
+    current_year = datetime.now().year
+    years = list(range(2018, current_year + 1))
+
+    analyses = []
+    for year in years:
+        print(f"\nprocessing year: {year}")
+        start_date = f"{year}-01-01"
+        end_date = f"{year}-12-31"
+        entries = get_entries_by_date_range(start_date, end_date)
+        
+        # process entries (remove embeddings)
+        for entry, _ in entries:
+            if "embedding" in entry:
+                del entry['embedding']
+        
+        # format entries_str like in retrieve_docs
+        entries_str = ""
+        for i, (entry, score) in enumerate(entries, 1):
+            entries_str += f"Entry {i} (Score: {score}):\n"
+            for k, v in entry.items():
+                entries_str += f"  {k}: {v}\n"
+            entries_str += "\n"
+
+        # create fresh chat history for each year to avoid contamination
+        year_chat_history = load_chat_history(request)
+        
+        # run year analysis
+        analysis = comprehensive_analysis(request, year_chat_history, entries_str, "YEAR")
+        analyses.append(analysis)
+        print(f"\nreasoning: {analysis.reasoning}\n\nanalysis: {analysis.analysis}\n\nexcerpts: {analysis.excerpts}\n")
+
+    analyses_str = ""
+    for analysis in analyses:
+        analyses_str += f"""
+        <ANALYSIS>{analysis.analysis}</ANALYSIS>
+        <EXCERPTS>{analysis.excerpts}</EXCERPTS>
+        """
+    final_analysis = comprehensive_analysis(request, chat_history, analyses_str, "FINAL")
+    print(f"\nFINAL ANALYSIS\n\nreasoning: {final_analysis.reasoning}\n\nanalysis: {final_analysis.analysis}\n\nexcerpts: {final_analysis.excerpts}\n")
+
+    # prepare result for caching
+    result = {
+        "query": request.query,
+        "provider": request.provider,
+        "model": request.model,
+        "timestamp": datetime.now().isoformat(),
+        "year_analyses": [
+            {
+                "year": year,
+                "reasoning": analysis.reasoning,
+                "analysis": analysis.analysis,
+                "excerpts": analysis.excerpts
+            }
+            for year, analysis in zip(years, analyses)
+        ],
+        "final_analysis": {
+            "reasoning": final_analysis.reasoning,
+            "analysis": final_analysis.analysis,
+            "excerpts": final_analysis.excerpts
+        }
+    }
+    
+    # save to cache
+    os.makedirs("data", exist_ok=True)
+    with open(cache_file, 'w') as f:
+        json.dump(result, f, indent=2)
+    
+    print(f"analysis cached to {cache_file}")
+    return result
+
+### thread management
+
 @app.post("/threads")
 def create_new_thread(req: CreateThreadRequest) -> CreateThreadResponse:
     """Create a new chat thread"""
@@ -140,3 +197,33 @@ def delete_thread_endpoint(thread_id: str) -> dict:
     if not success:
         raise HTTPException(status_code=404, detail="Thread not found")
     return {"message": "Thread deleted successfully"}
+
+### utilities
+
+def load_chat_history(request: ChatRequest) -> list[dict]:
+        # get thread history from elasticsearch if present
+    es_messages = []
+    if request.thread_id:
+        try:
+            thread_messages = get_thread_messages(request.thread_id)
+            if thread_messages:
+                for msg in thread_messages:
+                    role = msg.get("role", "user")
+                    if role not in ["user", "assistant"]:
+                        role = "user"
+                    content = msg.get("content", "")
+                    es_messages.append({"role": role, "content": content})
+        except Exception as e:
+            print(f"Error loading thread messages: {e}")
+
+    # also include message history from request if provided (for temporary chats)
+    temp_messages = []
+    if request.message_history:
+        for msg in request.message_history:
+            role = msg.get("sender", "user")
+            if role not in ["user", "assistant"]:
+                role = "user"
+            content = msg.get("text", "")
+            temp_messages.append({"role": role, "content": content})
+
+    return es_messages + temp_messages

@@ -2,11 +2,14 @@ from enum import Enum
 from typing import Optional
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+### context engineering
 
 class Retrievers(str, Enum):
     RECENT = "recent"
     VECTOR = "vector"
+    NONE = "none"
     # RECENT = Field(
     #     "recent", 
     #     description="Retrieves most recent journal entries. Trigger words: recently, lately, over the past N time frame, etc."
@@ -19,6 +22,17 @@ class Retrievers(str, Enum):
 
 class QueryIntent(BaseModel):
     intent: Retrievers
+
+class DirectChatResponse(BaseModel):
+    """used as response model for LLM call"""
+    response: str
+
+class ComprehensiveAnalysis(BaseModel):
+    reasoning: str = Field(description="Provide reasoning that will help answer the question effectively.")
+    analysis: str = Field(description="Provide your formal analysis.")
+    excerpts: list[str] = Field(description="Propagate relevant excerpts from the entries.")
+
+### API interfaces
 
 class QueryRequest(BaseModel):
     query: str
@@ -37,10 +51,6 @@ class ChatRequest(BaseModel):
     thread_id: Optional[str]
     message_history: Optional[list[dict]] = None
     existing_docs: Optional[list[dict]] = None
-
-class DirectChatResponse(BaseModel):
-    """used as response model for LLM call"""
-    response: str
 
 class ChatResponse(BaseModel):
     """used as response model to return results to frontend"""
@@ -61,6 +71,8 @@ class Message(BaseModel):
     timestamp: datetime
     role: str  # 'user' or 'assistant'
     content: str
+
+### thread management
 
 class CreateThreadRequest(BaseModel):
     title: Optional[str] = None

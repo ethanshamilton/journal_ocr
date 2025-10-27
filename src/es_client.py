@@ -84,13 +84,15 @@ def get_similar_entries(embedding: list[float], n: int) -> list[dict]:
 
     return [(hit["_source"], hit["_score"]) for hit in response["hits"]["hits"]]
 
-def get_entries_by_date_range(start_date: str, end_date: str, n: int = 100) -> list[dict]:
-    """ Get journal entries between start_date and end_date (inclusive). """
-    response = es.search(
-        index="journals",
-        size=n,
-        sort=[{"date": {"order": "desc"}}],
-        query={
+def get_entries_by_date_range(start_date: str, end_date: str, n: int = None) -> list[dict]:
+    """
+    Get journal entries between start_date and end_date (inclusive).
+    If n is None, return all matching entries.
+    """
+    search_kwargs = {
+        "index": "journals",
+        "sort": [{"date": {"order": "desc"}}],
+        "query": {
             "range": {
                 "date": {
                     "gte": start_date,
@@ -98,7 +100,12 @@ def get_entries_by_date_range(start_date: str, end_date: str, n: int = 100) -> l
                 }
             }
         }
-    )
+    }
+    if n is not None:
+        search_kwargs["size"] = n
+    else:
+        search_kwargs["size"] = 10000  # Elasticsearch default max -- will never hit this
+    response = es.search(**search_kwargs)
 
     return [(hit["_source"], hit["_score"]) for hit in response["hits"]["hits"]]
 
@@ -124,17 +131,22 @@ def retrieve_docs(req: ChatRequest) -> dict:
             entries = get_similar_entries(query_embedding, req.top_k)
         elif query_intent == Retrievers.RECENT:
             entries = get_recent_entries()
+        elif query_intent == Retrievers.NONE:
+            entries = None
 
         # process entries
         for entry, _ in entries:
             if "embedding" in entry:
                 del entry['embedding']
         
-        for i, (entry, score) in enumerate(entries, 1):
-            entries_str += f"Entry {i} (Score: {score}):\n"
-            for k, v in entry.items():
-                entries_str += f"  {k}: {v}\n"
-            entries_str += "\n"
+        if entries:
+            for i, (entry, score) in enumerate(entries, 1):
+                entries_str += f"Entry {i} (Score: {score}):\n"
+                for k, v in entry.items():
+                    entries_str += f"  {k}: {v}\n"
+                entries_str += "\n"
+        else:
+            entries_str = ""
     
     return {
         "entries": entries,

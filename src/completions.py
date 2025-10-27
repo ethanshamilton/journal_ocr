@@ -1,6 +1,7 @@
 # transcribe.py
 # functions for image transcription
 import os
+from typing import Literal
 import instructor
 import yaml
 import time
@@ -13,7 +14,7 @@ from io import BytesIO
 from google import genai
 from openai import OpenAI
 from dotenv import load_dotenv
-from models import ChatRequest, DirectChatResponse, QueryIntent
+from models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis
 from pdf2image import convert_from_path
 
 load_dotenv()
@@ -124,7 +125,7 @@ def insert_transcription(file_path: str, transcription: str) -> None:
     logging.info(f"Updated transcription in {file_path}")
 
 def intent_classifier(query: str) -> str:
-    client = instructor.from_provider("anthropic/claude-haiku-4-5")
+    client = instructor.from_provider("openai/gpt-5-mini-2025-08-07")
     response = client.chat.completions.create(
         response_model=QueryIntent,
         messages=[{"role": "user", "content": f"Determine which retrieval method is best for the following query: {query}"}]
@@ -178,6 +179,71 @@ def chat_response(request: ChatRequest, chat_history: list, entries_str: str) ->
         print(f"role: {msg['role']}\ncontent: {msg['content'][:100]}...\n")
 
     return response.response
+
+def comprehensive_analysis(
+    request: ChatRequest,
+    chat_history: list,
+    entries_str: str,
+    step: Literal["YEAR", "FINAL"]
+) -> ComprehensiveAnalysis:
+    client = instructor.from_provider(f"{request.provider}/{request.model}")
+
+    if step == "YEAR":
+        instructions = """
+        Please analyze all the journal entries shown to provide a comprehensive analysis of how they pertain to the query.
+        This message will be used to provide compressed context about the year you are analyzing to a further LLM call that
+        is responsible for synthesizing an overall answer to the user's query.
+        """
+    if step == "FINAL":
+        instructions = """
+        Please analyze the reports shown to provide a comprehensive analysis of how they pertain to the query. 
+        This message will be shown as the final analysis report to the user. The reports shown have been generated in a previous
+        step by upstream LLM models analyzing direct source journal entries.
+        """
+
+    chat_history.append({
+        "role": "user",
+        "content": f"""
+        <INSTRUCTIONS>
+        {instructions}
+        </INSTRUCTIONS>
+        <QUERY>
+        {request.query}
+        </QUERY>
+        <ENTRIES>
+        {entries_str}
+        </ENTRIES>
+        """
+    })
+
+    max_retries = 10
+    base_delay = 1
+    
+    for attempt in range(max_retries):
+        try:
+            return client.chat.completions.create(
+                response_model=ComprehensiveAnalysis,
+                messages=chat_history
+            )
+        except Exception as e:
+            error_str = str(e).lower()
+            
+            # check for rate limit errors
+            if any(keyword in error_str for keyword in ['rate limit', 'rate_limit', 'too many requests', 'quota exceeded', '429']):
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)  # exponential backoff
+                    print(f"rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(delay)
+                    continue
+                else:
+                    print("max retries exceeded for rate limit, returning error")
+                    raise Exception(f"rate limit exceeded after {max_retries} attempts: {e}")
+            else:
+                # non-rate-limit error, re-raise immediately
+                raise e
+    
+    # this should never be reached, but just in case
+    raise Exception("unexpected error in analyze_year retry logic")
 
 def transcribe_images(b64str_images:list[str], tags:str) -> str:
     """ Given a list of images, transcribe them with GPT-4o. """

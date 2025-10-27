@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Optional
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 class Retrievers(str, Enum):
     RECENT = "recent"
@@ -39,9 +39,11 @@ class ChatRequest(BaseModel):
     existing_docs: Optional[list[dict]] = None
 
 class DirectChatResponse(BaseModel):
+    """used as response model for LLM call"""
     response: str
 
 class ChatResponse(BaseModel):
+    """used as response model to return results to frontend"""
     response: str
     docs: list[tuple]
     thread_id: Optional[str]

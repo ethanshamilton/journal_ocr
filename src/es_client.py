@@ -66,7 +66,7 @@ def get_recent_entries(n: int = 7) -> list[dict]:
 
     return [(hit["_source"], hit["_score"]) for hit in response["hits"]["hits"]]
 
-def get_similar_entries(embedding: list[float], n: int) -> dict:
+def get_similar_entries(embedding: list[float], n: int) -> list[dict]:
     """ Run vector search on the elasticsearch index.  """
     response = es.search(
         index="journals",
@@ -77,6 +77,24 @@ def get_similar_entries(embedding: list[float], n: int) -> dict:
                     "field": "embedding",
                     "query_vector": embedding,
                     "num_candidates": n
+                }
+            }
+        }
+    )
+
+    return [(hit["_source"], hit["_score"]) for hit in response["hits"]["hits"]]
+
+def get_entries_by_date_range(start_date: str, end_date: str, n: int = 100) -> list[dict]:
+    """ Get journal entries between start_date and end_date (inclusive). """
+    response = es.search(
+        index="journals",
+        size=n,
+        sort=[{"date": {"order": "desc"}}],
+        query={
+            "range": {
+                "date": {
+                    "gte": start_date,
+                    "lte": end_date
                 }
             }
         }

@@ -22,18 +22,18 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 google_client = genai.Client(api_key=GOOGLE_API_KEY)
 
-def check_image_size(encoded_image:str, max_size_mb:int=20) -> bool:
+def check_image_size(encoded_image: str, max_size_mb: int=20) -> bool:
     """ Ensure image doesn't exceed maximum file size. """
     img_bytes = base64.b64decode(encoded_image)
     size_mb = len(img_bytes) / (1024 * 1024)
     return size_mb <= max_size_mb
 
-def convert_and_encode_pdf(pdf_path:str, output_format:str="PNG") -> list[str]:
+def convert_and_encode_pdf(pdf_path: str, output_format: str="PNG") -> list[str]:
     """ Convert PDF to images and encode them to base64 strings. """
     images = convert_from_path(pdf_path)
     return [encode_image(image, output_format) for image in images]
 
-def encode_entry(file_path:str, output_format:str="PNG") -> list[str]:
+def encode_entry(file_path: str, output_format: str = "PNG") -> list[str]:
     """ Calls the corresponding encoding function on PDF and image based journal entries. """
     try:
         if file_path.lower().endswith('.pdf'):
@@ -45,7 +45,7 @@ def encode_entry(file_path:str, output_format:str="PNG") -> list[str]:
         logging.error(f"Error encoding file {file_path}: {str(e)}")
         raise
 
-def encode_image(image:PILImage, output_format:str="PNG") -> str:
+def encode_image(image: PILImage, output_format: str = "PNG") -> str:
     """ Encode a PIL Image object to base64 string. """
     buffered = BytesIO()
     image.save(buffered, format=output_format)

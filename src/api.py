@@ -1,6 +1,4 @@
-import json
-import instructor
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from es_client import (
@@ -12,8 +10,7 @@ from completions import get_embedding, query_llm, chat_response
 from models import (
     QueryRequest, LLMRequest, ChatRequest, ChatResponse, 
     CreateThreadRequest, CreateThreadResponse, Thread, 
-    Message, AddMessageRequest, UpdateThreadRequest,
-    Retrievers
+    Message, AddMessageRequest, UpdateThreadRequest
 )
 
 app = FastAPI()
@@ -42,8 +39,8 @@ def _query_llm(req: LLMRequest) -> dict:
     response = query_llm(req.prompt, req.provider, req.model)
     return { "response": response.content[0].text }
 
-@app.post("/query_journal")
-async def query_journal(request: ChatRequest) -> ChatResponse:
+@app.post("/journal_chat")
+async def journal_chat(request: ChatRequest) -> ChatResponse:
     # retrieve documents using the new endpoint logic
     retrieval_result = retrieve_docs(request)
     entries = retrieval_result["entries"]

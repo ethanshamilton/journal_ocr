@@ -148,6 +148,39 @@ def query_llm(prompt: str, provider: str, model: str):
             input=prompt,
         ).output_text
 
+def prompt_generator(client: instructor.AsyncInstructor, prompt: str, step: Literal["YEAR", "FINAL"]) -> str:
+    return client.chat.completions.create(
+        response_model=str,
+        messages=[{
+            "role": "user",
+            "content": f"""
+            Generate a medium length prompt for an analyst language model that will guide the analyst to 
+            most effectively process the given data. Here are some examples...
+
+            Here is an example of a prompt that was used before: 
+
+            <EXAMPLE>
+            Please analyze all the journal entries shown to provide a comprehensive analysis of how they pertain to the query.
+            This message will be used to provide compressed context about the year you are analyzing to a further LLM call that
+            is responsible for synthesizing an overall answer to the user's query.
+            </EXAMPLE>
+            
+            DO NOT PROVIDE A STRUCTURED OUTPUT SCHEMA. This will be handled elsewhere.
+
+            The goal is to dynamically tune the analyst model to attend to the action the user is requesting.
+
+            There are two types of analyst model: year and final analysis models. Year models provide intermediate reports
+            which will be processed by the final analysis model. The result of the final analysis model will be shown to the
+            user. Be sure to convey any relevant information about the step in the process to the analyst model so it is able
+            to effectively provide information to the consuming entity.
+
+            USER QUERY: {prompt}
+
+            STEP: {step}
+            """
+        }]
+    )
+
 def chat_response(request: ChatRequest, chat_history: list, entries_str: str) -> str:
     client = instructor.from_provider(f"{request.provider}/{request.model}")
     
@@ -188,18 +221,20 @@ def comprehensive_analysis(
 ) -> ComprehensiveAnalysis:
     client = instructor.from_provider(f"{request.provider}/{request.model}")
 
-    if step == "YEAR":
-        instructions = """
-        Please analyze all the journal entries shown to provide a comprehensive analysis of how they pertain to the query.
-        This message will be used to provide compressed context about the year you are analyzing to a further LLM call that
-        is responsible for synthesizing an overall answer to the user's query.
-        """
-    if step == "FINAL":
-        instructions = """
-        Please analyze the reports shown to provide a comprehensive analysis of how they pertain to the query. 
-        This message will be shown as the final analysis report to the user. The reports shown have been generated in a previous
-        step by upstream LLM models analyzing direct source journal entries.
-        """
+    instructions = prompt_generator(client, request.query, step)
+    print("Analyst Instructions:", instructions)
+    # if step == "YEAR":
+    #     # instructions = """
+    #     # Please analyze all the journal entries shown to provide a comprehensive analysis of how they pertain to the query.
+    #     # This message will be used to provide compressed context about the year you are analyzing to a further LLM call that
+    #     # is responsible for synthesizing an overall answer to the user's query.
+    #     # """
+    # if step == "FINAL":
+    #     # instructions = """
+    #     # Please analyze the reports shown to provide a comprehensive analysis of how they pertain to the query. 
+    #     # This message will be shown as the final analysis report to the user. The reports shown have been generated in a previous
+    #     # step by upstream LLM models analyzing direct source journal entries.
+    #     # """
 
     chat_history.append({
         "role": "user",

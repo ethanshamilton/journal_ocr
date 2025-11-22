@@ -1,12 +1,12 @@
 # client code for interacting with Elasticsearch
-import logging
 import uuid
+import logging
 from datetime import datetime
 from typing import Optional
 
 from elasticsearch import Elasticsearch
 
-from models import ChatRequest, Retrievers
+from models import ChatRequest, SearchOptions
 from completions import get_embedding, intent_classifier
 
 logging.basicConfig(filename="x.log")
@@ -126,12 +126,12 @@ def retrieve_docs(req: ChatRequest) -> dict:
         # do normal retrieval
         query_intent = intent_classifier(req.query)
 
-        if query_intent == Retrievers.VECTOR:
+        if query_intent == SearchOptions.VECTOR:
             query_embedding = get_embedding(req.query)
             entries = get_similar_entries(query_embedding, req.top_k)
-        elif query_intent == Retrievers.RECENT:
+        elif query_intent == SearchOptions.RECENT:
             entries = get_recent_entries()
-        elif query_intent == Retrievers.NONE:
+        elif query_intent == SearchOptions.NONE:
             entries = None
 
         # process entries

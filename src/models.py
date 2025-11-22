@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 ### context engineering
 
-class Retrievers(str, Enum):
+class SearchOptions(str, Enum):
     RECENT = "recent"
     VECTOR = "vector"
     NONE = "none"
@@ -21,7 +21,7 @@ class Retrievers(str, Enum):
     # )
 
 class QueryIntent(BaseModel):
-    intent: Retrievers
+    intent: SearchOptions
 
 class DirectChatResponse(BaseModel):
     """used as response model for LLM call"""

@@ -25,3 +25,4 @@ x.log
 .DS_Store
 .vscode
 .coverage
+lance.*

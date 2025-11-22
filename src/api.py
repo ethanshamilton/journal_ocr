@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from datetime import datetime
 import json
 import hashlib
@@ -12,13 +13,29 @@ from es_client import (
     save_message, delete_thread, es
 )
 from completions import chat_response, comprehensive_analysis
+from lancedb_client import LocalLanceDB
 from models import (
     ChatRequest, ChatResponse, 
     CreateThreadRequest, CreateThreadResponse, Thread, 
     Message, AddMessageRequest, UpdateThreadRequest
 )
+from retrievers import DocRetriever
 
-app = FastAPI()
+lance = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("initializing database")
+    global lance
+    lance = LocalLanceDB("lance.journal-app")
+    lance.startup_ingest()
+    app.state.db = lance
+
+    yield
+
+    print("shutting down")
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,8 +49,9 @@ app.add_middleware(
 
 @app.post("/journal_chat")
 async def journal_chat(request: ChatRequest) -> ChatResponse:
-    # retrieve documents using the new endpoint logic
-    retrieval_result = retrieve_docs(request)
+    global lance
+    doc_retriever = DocRetriever(lance)
+    retrieval_result = doc_retriever.retrieve_docs(request)
     entries = retrieval_result["entries"]
     entries_str = retrieval_result["entries_str"]
 
@@ -41,7 +59,9 @@ async def journal_chat(request: ChatRequest) -> ChatResponse:
     chat_history = load_chat_history(request)
 
     # generate response
+    print("attempting llm response")
     llm_response = chat_response(request, chat_history, entries_str)
+    print(llm_response)
 
     return ChatResponse(response=llm_response, docs=entries, thread_id=request.thread_id)
 

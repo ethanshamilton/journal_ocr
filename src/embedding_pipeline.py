@@ -11,7 +11,7 @@ from rich.progress import (
     TimeElapsedColumn, TimeRemainingColumn
 )
 
-import loader as l
+import ingest as i
 import completions as c
 import navigation as nav
 
@@ -62,7 +62,7 @@ def main():
         for entry in files:
             with open(entry, 'r', encoding='utf-8') as file:
                 content = file.read()
-            transcription = l.extract_transcription(content)
+            transcription = i.extract_transcription(content)
             embedding = c.get_embedding(transcription)
             c.update_frontmatter_field(entry, "embedding", "True")
             embeddings[entry] = embedding

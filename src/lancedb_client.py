@@ -7,6 +7,7 @@ import polars as pl
 from dotenv import load_dotenv
 
 from ingest import load_chats_to_dfs, load_notes_to_df
+from models import Entry
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -42,11 +43,30 @@ class LocalLanceDB:
 
     ### search and retrieval
 
-    def get_recent_entries(self, n: int = 7) -> pl.DataFrame:
+    def get_recent_entries(self, n: int = 7) -> list[Entry]:
         table = self.db.open_table("journal")
-        df = pl.from_arrow(table.to_arrow())
-        return df.sort("date", descending=True).head(n)
+        entries_df = pl.from_arrow(table.to_arrow()).sort("date", descending=True).head(n)
+        return self.df_to_entries(entries_df)
 
-    def get_similar_entries(self, embedding: list[float], n: int = 5) -> pl.DataFrame:
+    def get_similar_entries(self, _embedding: list[float], n: int = 5) -> list[(Entry, float)]:
         table = self.db.open_table("journal")
-        return table.search(embedding).limit(n).to_polars().sort("_distance", descending=False)
+        entries_df = table.search(_embedding).limit(n).to_polars().sort("_distance", descending=False)
+        entries = self.df_to_entries(entries_df)
+        distances = entries_df["_distance"].to_list()
+        return list(zip(entries, distances))
+
+    def get_entries_by_date_range(self, start_date: str, end_date: str, n: int = None) -> list[Entry]:
+        table = self.db.open_table("journal")
+        entries_df = table.search().where(f"date >= '{start_date}' AND date <= '{end_date}'").to_polars()
+        return self.df_to_entries(entries_df)
+
+    def df_to_entries(self, df: pl.DataFrame) -> list[Entry]:
+        return [
+            Entry(
+                date=row["date"],
+                title=row["title"],
+                text=row["text"],
+                tags=row["tags"],
+                embedding=row["embedding"]
+            ) for row in df.iter_rows(named=True)
+        ]

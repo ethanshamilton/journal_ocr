@@ -25,24 +25,23 @@ class DocRetriever:
             if query_intent == SearchOptions.VECTOR:
                 query_embedding = get_embedding(req.query)
                 entries = self.lance.get_similar_entries(query_embedding, req.top_k)
+                for i, (entry, distance) in enumerate(entries, 1):
+                    entry_dict = entry.model_dump(exclude={"embedding"})
+                    entries_str += f"Entry {i} (Distance: {distance})\n"
+                    for k, v in entry_dict.items():
+                        entries_str += f"   {k}: {v}\n"
+                    entries_str += "\n"
+                    output_entries.append((entry_dict, distance))
+
             elif query_intent == SearchOptions.RECENT:
                 entries = self.lance.get_recent_entries()
-
-            # process entries
-            if "embedding" in entries.columns:
-                entries = entries.drop("embedding")
-            
-            has_distance = "_distance" in entries.columns
-
-            for i, row in enumerate(entries.iter_rows(named=True), 1):
-                distance = row.pop("_distance") if has_distance else "N/A"
-                entries_str += f"Entry {i} (Distance: {distance}):\n"
-                for k, v in row.items():
-                    entries_str += f"   {k}: {v}\n"
-                entries_str += "\n"
-
-                print(row)
-                output_entries.append((row, distance))
+                for i, entry in enumerate(entries, 1):
+                    entry_dict = entry.model_dump(exclude={"embedding"})
+                    entries_str += f"Entry {i}:\n"
+                    for k, v in entry_dict.items():
+                        entries_str += f"   {k}: {v}\n"
+                    entries_str += "\n"
+                    output_entries.append((entry_dict, "n/a"))
         
         return {
             "entries": output_entries,

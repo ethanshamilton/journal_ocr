@@ -12,4 +12,4 @@ uv run src/embedding_pipeline.py --mode live
 
 docker compose up -d
 
-uv run src/loader.py --mode live
+uv run src/ingest.py --mode live

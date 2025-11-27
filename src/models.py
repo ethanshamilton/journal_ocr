@@ -32,6 +32,13 @@ class ComprehensiveAnalysis(BaseModel):
     analysis: str = Field(description="Provide your formal analysis.")
     excerpts: list[str] = Field(description="Propagate relevant excerpts from the entries.")
 
+class Entry(BaseModel):
+    date: str
+    title: str
+    text: str
+    tags: list[str]
+    embedding: list[float] | None
+
 ### API interfaces
 
 class QueryRequest(BaseModel):

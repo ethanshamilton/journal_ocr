@@ -3,12 +3,13 @@ from datetime import datetime
 import json
 import hashlib
 import os
+import tiktoken
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from es_client import (
-    create_thread, retrieve_docs, get_entries_by_date_range,
+    create_thread, get_entries_by_date_range,
     get_threads, get_thread, get_thread_messages,
     save_message, delete_thread, es
 )
@@ -111,6 +112,10 @@ async def comprehensive_journal_analysis(request: ChatRequest) -> dict:
         year_chat_history = load_chat_history(request)
         
         # run year analysis
+        encoder = tiktoken.get_encoding("cl100k_base")
+        tokens = encoder.encode(entries_str)
+        token_count = len(tokens) * 1.05
+        print(f"Token count for {year}: {token_count}")
         analysis = comprehensive_analysis(request, year_chat_history, entries_str, "YEAR")
         analyses.append(analysis)
         print(f"\nreasoning: {analysis.reasoning}\n\nanalysis: {analysis.analysis}\n\nexcerpts: {analysis.excerpts}\n")

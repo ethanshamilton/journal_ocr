@@ -1,5 +1,5 @@
-# transcribe.py
-# functions for image transcription
+# completions.py
+# code for dealing with LLM stuff
 import os
 from typing import Literal
 import instructor
@@ -7,6 +7,7 @@ import yaml
 import time
 import base64
 import logging
+import tiktoken
 import anthropic
 from PIL import Image
 from PIL.Image import Image as PILImage
@@ -14,7 +15,7 @@ from io import BytesIO
 from google import genai
 from openai import OpenAI
 from dotenv import load_dotenv
-from models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis
+from models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis, Entry
 from pdf2image import convert_from_path
 
 load_dotenv()
@@ -28,6 +29,16 @@ def check_image_size(encoded_image: str, max_size_mb: int=20) -> bool:
     img_bytes = base64.b64decode(encoded_image)
     size_mb = len(img_bytes) / (1024 * 1024)
     return size_mb <= max_size_mb
+
+def chunk_by_tokens(text: Entry, chunk_max_tokens: int, encoding: tiktoken.Encoding) -> list[str]:
+    chunks = []
+    current_chunk = []
+    current_tokens = 0
+
+    for entry, score in text:
+        pass
+    
+    return chunks
 
 def convert_and_encode_pdf(pdf_path: str, output_format: str="PNG") -> list[str]:
     """ Convert PDF to images and encode them to base64 strings. """

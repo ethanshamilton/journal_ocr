@@ -7,7 +7,6 @@ import yaml
 import time
 import base64
 import logging
-import tiktoken
 import anthropic
 from PIL import Image
 from PIL.Image import Image as PILImage
@@ -15,7 +14,7 @@ from io import BytesIO
 from google import genai
 from openai import OpenAI
 from dotenv import load_dotenv
-from models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis, Entry
+from models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis
 from pdf2image import convert_from_path
 
 load_dotenv()
@@ -29,16 +28,6 @@ def check_image_size(encoded_image: str, max_size_mb: int=20) -> bool:
     img_bytes = base64.b64decode(encoded_image)
     size_mb = len(img_bytes) / (1024 * 1024)
     return size_mb <= max_size_mb
-
-def chunk_by_tokens(text: Entry, chunk_max_tokens: int, encoding: tiktoken.Encoding) -> list[str]:
-    chunks = []
-    current_chunk = []
-    current_tokens = 0
-
-    for entry, score in text:
-        pass
-    
-    return chunks
 
 def convert_and_encode_pdf(pdf_path: str, output_format: str="PNG") -> list[str]:
     """ Convert PDF to images and encode them to base64 strings. """
@@ -159,7 +148,7 @@ def query_llm(prompt: str, provider: str, model: str):
             input=prompt,
         ).output_text
 
-def prompt_generator(client: instructor.AsyncInstructor, prompt: str, step: Literal["YEAR", "FINAL"]) -> str:
+def prompt_generator(client: instructor.AsyncInstructor, prompt: str, step: Literal["SUBYEAR", "YEAR", "FINAL"]) -> str:
     return client.chat.completions.create(
         response_model=str,
         messages=[{
@@ -180,8 +169,9 @@ def prompt_generator(client: instructor.AsyncInstructor, prompt: str, step: Lite
 
             The goal is to dynamically tune the analyst model to attend to the action the user is requesting.
 
-            There are two types of analyst model: year and final analysis models. Year models provide intermediate reports
-            which will be processed by the final analysis model. The result of the final analysis model will be shown to the
+            There are three types of analyst model: subyear, year, and final analysis models. Year models provide intermediate reports
+            which will be processed by the final analysis model. Subyear models are used in cases where a full yearly analysis is too
+            large for a model's context window. The result of the final analysis model will be shown to the
             user. Be sure to convey any relevant information about the step in the process to the analyst model so it is able
             to effectively provide information to the consuming entity.
 
@@ -228,7 +218,7 @@ def comprehensive_analysis(
     request: ChatRequest,
     chat_history: list,
     entries_str: str,
-    step: Literal["YEAR", "FINAL"]
+    step: Literal["SUBYEAR", "YEAR", "FINAL"]
 ) -> ComprehensiveAnalysis:
     client = instructor.from_provider(f"{request.provider}/{request.model}")
 
@@ -269,7 +259,7 @@ def comprehensive_analysis(
         try:
             return client.chat.completions.create(
                 response_model=ComprehensiveAnalysis,
-                messages=chat_history
+                messages=chat_history,
             )
         except Exception as e:
             error_str = str(e).lower()

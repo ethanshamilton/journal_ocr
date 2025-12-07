@@ -59,10 +59,14 @@ class ChatRequest(BaseModel):
     message_history: Optional[list[dict]] = None
     existing_docs: Optional[list[dict]] = None
 
+class RetrievedDoc(BaseModel):
+    entry: Entry
+    distance: float | None
+
 class ChatResponse(BaseModel):
     """used as response model to return results to frontend"""
     response: str
-    docs: list[tuple]
+    docs: list[RetrievedDoc]
     thread_id: Optional[str]
 
 class Thread(BaseModel):

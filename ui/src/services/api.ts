@@ -33,6 +33,19 @@ export interface LLMResponse {
   response: string
 }
 
+export interface Entry {
+  date: string
+  title: string
+  text: string
+  tags: string[]
+  embedding?: number[] | null
+}
+
+export interface RetrievedDoc {
+  entry: Entry
+  distance: number | null
+}
+
 export interface ChatRequest {
   query: string
   top_k?: number
@@ -49,7 +62,7 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   response: string
-  docs: [SimilarEntry, number][]
+  docs: RetrievedDoc[]
   thread_id?: string
 }
 

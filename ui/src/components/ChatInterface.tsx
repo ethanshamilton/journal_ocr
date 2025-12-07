@@ -215,10 +215,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
           })
         
         // Prepare similar entries to be sent to DocumentViewer
-        similarDocs = combinedResponse.docs.map(([entry], i) => ({
+        similarDocs = combinedResponse.docs.map((doc, i) => ({
           id: i + 1,
-          title: entry.title || `Similar Entry ${i + 1}`,
-          content: entry.text || JSON.stringify(entry)
+          title: doc.entry.title || `Similar Entry ${i + 1}`,
+          content: doc.entry.text || JSON.stringify(doc.entry)
         }))
         
         setRetrievedDocs(similarDocs)

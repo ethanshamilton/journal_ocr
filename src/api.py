@@ -1,32 +1,36 @@
 from contextlib import asynccontextmanager
+import json
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
-from flows import comprehensive_analysis_flow, default_llm_flow
+from flows import comprehensive_analysis_flow, default_llm_flow, default_llm_flow_stream
 from lancedb_client import AsyncLocalLanceDB
 from models import (
-    ChatRequest, ChatResponse, 
-    CreateThreadRequest, CreateThreadResponse, Thread, 
+    ChatRequest, ChatResponse,
+    CreateThreadRequest, CreateThreadResponse, Thread,
     Message, AddMessageRequest, UpdateThreadRequest
 )
-
-lance = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("initializing database")
-    global lance
-    lance = AsyncLocalLanceDB("lance.journal-app")
-    await lance.connect()
-    await lance.startup_ingest()
-    app.state.db = lance
+    db = AsyncLocalLanceDB("lance.journal-app")
+    await db.connect()
+    await db.startup_ingest()
+    app.state.db = db
 
     yield
 
     print("shutting down")
 
 app = FastAPI(lifespan=lifespan)
+
+
+async def get_db() -> AsyncLocalLanceDB:
+    """Dependency injection for database access."""
+    return app.state.db
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,75 +43,117 @@ app.add_middleware(
 ### completion endpoints
 
 @app.post("/journal_chat")
-async def journal_chat(request: ChatRequest) -> ChatResponse:
-    global lance
-    return default_llm_flow(lance, request)
+async def journal_chat(
+    request: ChatRequest,
+    db: AsyncLocalLanceDB = Depends(get_db)
+) -> ChatResponse:
+    return await default_llm_flow(db, request)
+
+
+@app.post("/journal_chat/stream")
+async def journal_chat_stream(
+    request: ChatRequest,
+    db: AsyncLocalLanceDB = Depends(get_db)
+):
+    """Streaming endpoint for journal chat responses."""
+    async def generate():
+        async for partial, docs in default_llm_flow_stream(db, request):
+            chunk_data = {
+                "response": partial.response if partial.response else "",
+                "docs": [doc.model_dump() for doc in docs] if docs else []
+            }
+            yield f"data: {json.dumps(chunk_data)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
 
 @app.post("/comprehensive_analysis")
-async def comprehensive_journal_analysis(request: ChatRequest) -> dict:
-    global lance
-    return comprehensive_analysis_flow(lance, request)
+async def comprehensive_journal_analysis(
+    request: ChatRequest,
+    db: AsyncLocalLanceDB = Depends(get_db)
+) -> dict:
+    return await comprehensive_analysis_flow(db, request)
 
 ### thread management
 
 @app.post("/threads")
-async def create_new_thread(req: CreateThreadRequest) -> CreateThreadResponse:
+async def create_new_thread(
+    req: CreateThreadRequest,
+    db: AsyncLocalLanceDB = Depends(get_db)
+) -> CreateThreadResponse:
     """Create a new chat thread"""
-    global lance
-    thread_doc = await lance.create_thread(req.title, req.initial_message)
+    thread_doc = await db.create_thread(req.title, req.initial_message)
     return CreateThreadResponse(
         thread_id=thread_doc["thread_id"],
         created_at=thread_doc["created_at"]
     )
 
+
 @app.get("/threads")
-async def list_threads() -> list[Thread]:
+async def list_threads(db: AsyncLocalLanceDB = Depends(get_db)) -> list[Thread]:
     """Get all threads"""
-    global lance
-    threads = await lance.get_threads()
+    threads = await db.get_threads()
     return [Thread(**thread) for thread in threads]
 
+
 @app.get("/threads/{thread_id}")
-async def get_thread_details(thread_id: str) -> Thread:
+async def get_thread_details(
+    thread_id: str,
+    db: AsyncLocalLanceDB = Depends(get_db)
+) -> Thread:
     """Get a specific thread"""
-    global lance
-    thread = await lance.get_thread(thread_id)
+    thread = await db.get_thread(thread_id)
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
     return Thread(**thread)
 
+
 @app.get("/threads/{thread_id}/messages")
-async def get_thread_messages_endpoint(thread_id: str) -> list[Message]:
+async def get_thread_messages_endpoint(
+    thread_id: str,
+    db: AsyncLocalLanceDB = Depends(get_db)
+) -> list[Message]:
     """Get all messages for a thread"""
-    global lance
-    messages = await lance.get_thread_messages(thread_id)
+    messages = await db.get_thread_messages(thread_id)
     return [Message(**msg) for msg in messages]
 
+
 @app.post("/threads/{thread_id}/messages")
-async def add_message_to_thread(thread_id: str, req: AddMessageRequest) -> Message:
+async def add_message_to_thread(
+    thread_id: str,
+    req: AddMessageRequest,
+    db: AsyncLocalLanceDB = Depends(get_db)
+) -> Message:
     """Add a message to a thread"""
-    global lance
-    if not await lance.get_thread(thread_id):
+    if not await db.get_thread(thread_id):
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    message_doc = await lance.save_message(thread_id, req.role, req.content)
+    message_doc = await db.save_message(thread_id, req.role, req.content)
     return Message(**message_doc)
 
+
 @app.put("/threads/{thread_id}")
-async def update_thread_title(thread_id: str, req: UpdateThreadRequest) -> dict:
+async def update_thread_title(
+    thread_id: str,
+    req: UpdateThreadRequest,
+    db: AsyncLocalLanceDB = Depends(get_db)
+) -> dict:
     """Update thread title"""
-    global lance
-    if not await lance.get_thread(thread_id):
+    if not await db.get_thread(thread_id):
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    await lance.update_thread(thread_id, {"title": req.title})
+    await db.update_thread(thread_id, {"title": req.title})
     return {"message": "Thread title updated successfully"}
 
+
 @app.delete("/threads/{thread_id}")
-async def delete_thread_endpoint(thread_id: str) -> dict:
+async def delete_thread_endpoint(
+    thread_id: str,
+    db: AsyncLocalLanceDB = Depends(get_db)
+) -> dict:
     """Delete a thread"""
-    global lance
-    success = await lance.delete_thread(thread_id)
+    success = await db.delete_thread(thread_id)
     if not success:
         raise HTTPException(status_code=404, detail="Thread not found")
     return {"message": "Thread deleted successfully"}

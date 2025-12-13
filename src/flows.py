@@ -3,10 +3,10 @@ import tiktoken
 from datetime import datetime
 
 from completions import intent_classifier, get_embedding, chat_response, comprehensive_analysis
-from lancedb_client import LocalLanceDB
+from lancedb_client import AsyncLocalLanceDB
 from models import ChatRequest, ChatResponse, Entry, SearchOptions, RetrievedDoc
 
-def comprehensive_analysis_flow(lance: LocalLanceDB, req: ChatRequest) -> dict:
+def comprehensive_analysis_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> dict:
     print("running comprehensive analysis")
 
     encoder = tiktoken.get_encoding("cl100k_base")
@@ -103,7 +103,7 @@ def comprehensive_analysis_flow(lance: LocalLanceDB, req: ChatRequest) -> dict:
     
     return result
 
-def default_llm_flow(lance: LocalLanceDB, req: ChatRequest) -> ChatResponse:
+def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatResponse:
     entries = []
     response_docs = []
     entries_str = ""
@@ -176,7 +176,7 @@ def _chunk_entries_by_tokens(entries: list[Entry], encoder: tiktoken.Encoding, m
 
     return chunks
 
-def _load_chat_history(lance: LocalLanceDB, request: ChatRequest) -> list[dict]:
+def _load_chat_history(lance: AsyncLocalLanceDB, request: ChatRequest) -> list[dict]:
     # get thread history from lancedb if present
     db_messages = []
     if request.thread_id:

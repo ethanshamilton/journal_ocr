@@ -11,6 +11,7 @@ import polars as pl
 from dotenv import load_dotenv
 
 load_dotenv()
+os.makedirs("logs", exist_ok=True)
 logging.basicConfig(filename="logs/loader.log")
 
 def extract_transcription(text: str) -> str:

@@ -3,10 +3,47 @@ This vault contains code for transcribing my journals and interacting with the d
 
 <img src="_docs/journal-rag-img.png"></img>
 
+## Environment Setup
+
+### Backend (Python)
+
+Requires Python 3.13+. Uses [uv](https://docs.astral.sh/uv/) for dependency management.
+
+```bash
+# Install dependencies
+uv sync
+
+# Run the API server (port 8000)
+uv run uvicorn src.api:app --reload
+```
+
+### Frontend (React/Vite)
+
+```bash
+cd ui
+npm install
+npm run dev  # runs on port 5173
+```
+
+### Environment Variables
+
+Create a `.env` file in the project root with your API keys:
+- `OPENAI_API_KEY` - for embeddings and completions
+- `ANTHROPIC_API_KEY` - for Claude completions
+- `GOOGLE_API_KEY` - for Gemini completions
+
+### Worktree Setup
+
+If you're working in a git worktree, dependencies won't be shared with the main repo:
+1. Run `uv sync` to install Python dependencies locally
+2. Run `npm install` in `ui/` to install Node dependencies locally
+3. Create your `.env` file with API keys
+
 ## Quick Start
+
 1. `./launch.sh` - runs transcription and embedding pipelines, starts docker network, and loads data.
-2. `cd ui && npm run dev` - starts frontend. I haven't integrated this with docker yet. 
-3. `cd src && uv run uvicorn api:app --reload` - starts backend API. Also not integrated with docker yet. 
+2. `cd ui && npm run dev` - starts frontend.
+3. `uv run uvicorn src.api:app --reload` - starts backend API. 
 
 ## Current Capabilities
 - Checks configured data folder for the journal and makes sure everything is transcribed and embedded, then loads it to elasticsearch. 

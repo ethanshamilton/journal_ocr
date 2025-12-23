@@ -3,8 +3,6 @@
 # Exit immediately if any command fails
 set -e
 
-export PYTHONPATH=src
-
 echo ""
 echo "🔍 Running tests..."
 echo ""
@@ -15,12 +13,12 @@ echo ""
 echo "🚀 Running transcription pipeline in test mode..."
 echo ""
 
-uv run python src/transcription_pipeline.py --mode test
+uv run python -m backend.transcription_pipeline --mode test
 
 echo ""
 echo "🕸️ Running embedding pipeline in test mode..."
 echo ""
 
-uv run python src/embedding_pipeline.py --mode test
+uv run python -m backend.embedding_pipeline --mode test
 
 echo ""

@@ -1,5 +1,5 @@
 import pytest
-import src.completions as completions
+import backend.completions as completions
 
 SAMPLE_PDF = "data/sample_data/10-2024/10-07-2024 PM.pdf"
 SAMPLE_IMAGE = "data/sample_data/06-2023/06-01-2023 AM-128.jpg"

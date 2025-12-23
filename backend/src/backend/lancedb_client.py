@@ -10,8 +10,8 @@ import polars as pl
 import pyarrow as pa
 from dotenv import load_dotenv
 
-from ingest import load_chats_to_dfs, load_notes_to_df
-from models import Entry
+from backend.ingest import load_chats_to_dfs, load_notes_to_df
+from backend.models import Entry
 
 load_dotenv()
 logger = logging.getLogger(__name__)

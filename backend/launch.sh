@@ -4,12 +4,12 @@ echo ""
 echo "📖 Opening Journal"
 echo ""
 
-uv run src/transcription_pipeline.py --mode live
+uv run python -m backend.transcription_pipeline --mode live
 
 echo ""
 
-uv run src/embedding_pipeline.py --mode live
+uv run python -m backend.embedding_pipeline --mode live
 
 docker compose up -d
 
-uv run src/ingest.py --mode live
+uv run python -m backend.ingest --mode live

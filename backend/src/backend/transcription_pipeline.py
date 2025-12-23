@@ -8,8 +8,8 @@ from rich.progress import (
 )
 from dotenv import load_dotenv
 
-import completions as c
-import navigation as nav
+import backend.completions as c
+import backend.navigation as nav
 
 load_dotenv()
 

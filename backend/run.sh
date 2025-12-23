@@ -4,4 +4,4 @@ echo ""
 echo "🚀 Running main.py..."
 echo ""
 
-uv run src/transcription_pipeline.py --mode live
+uv run python -m backend.transcription_pipeline --mode live

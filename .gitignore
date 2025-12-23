@@ -1,7 +1,7 @@
 # Folders
 data
 logs
-src/baml_client
+baml_client/
 
 # Python-generated files
 __pycache__/

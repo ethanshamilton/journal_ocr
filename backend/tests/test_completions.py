@@ -1,5 +1,6 @@
 import pytest
 import backend.completions as completions
+from backend.models import SearchOptions
 
 SAMPLE_PDF = "data/sample_data/10-2024/10-07-2024 PM.pdf"
 SAMPLE_IMAGE = "data/sample_data/06-2023/06-01-2023 AM-128.jpg"
@@ -93,4 +94,86 @@ def test_transcription_at_end(temp_markdown):
 
     assert new_transcription in content
     assert "Old transcription text" not in content
+
+
+### Intent Classifier Tests
+
+@pytest.mark.asyncio
+async def test_intent_classifier_returns_valid_response():
+    """Test that intent_classifier returns a successful response from the LLM."""
+    query = "What have I been thinking about lately?"
+    result = await completions.intent_classifier(query)
+    
+    # Verify we get a valid SearchOptions value
+    assert isinstance(result, str)
+    assert result in [opt.value for opt in SearchOptions]
+
+
+@pytest.mark.asyncio
+async def test_intent_classifier_vector_route():
+    """Test that vector search is selected for semantic/topical queries."""
+    test_queries = [
+        "What were my thoughts about machine learning?",
+        "Tell me about times I felt anxious",
+        "What did I write about relationships?",
+        "Find entries related to career decisions"
+    ]
+    
+    for query in test_queries:
+        result = await completions.intent_classifier(query)
+        assert result == SearchOptions.VECTOR.value, f"Query '{query}' should return VECTOR, got {result}"
+
+
+@pytest.mark.asyncio
+async def test_intent_classifier_recent_route():
+    """Test that recent search is selected for temporal/recent queries."""
+    test_queries = [
+        "What have I been up to recently?",
+        "What did I write about lately?",
+        "Show me my recent thoughts",
+        "What have I been thinking about over the past week?",
+        "What happened in the last few days?"
+    ]
+    
+    for query in test_queries:
+        result = await completions.intent_classifier(query)
+        assert result == SearchOptions.RECENT.value, f"Query '{query}' should return RECENT, got {result}"
+
+
+@pytest.mark.asyncio
+async def test_intent_classifier_none_route():
+    """Test that NONE is selected for queries that don't need retrieval."""
+    test_queries = [
+        "Hello, how are you?",
+        "Thanks for your help!",
+        "Can you help me understand how this works?",
+        "What can you do?"
+    ]
+    
+    for query in test_queries:
+        result = await completions.intent_classifier(query)
+        assert result == SearchOptions.NONE.value, f"Query '{query}' should return NONE, got {result}"
+
+
+@pytest.mark.asyncio
+async def test_intent_classifier_coverage():
+    """Test that all SearchOptions enum values can be returned."""
+    # Collect results from various queries
+    vector_query = "What did I write about artificial intelligence?"
+    recent_query = "What have I written lately?"
+    none_query = "Hello!"
+    
+    vector_result = await completions.intent_classifier(vector_query)
+    recent_result = await completions.intent_classifier(recent_query)
+    none_result = await completions.intent_classifier(none_query)
+    
+    results = {vector_result, recent_result, none_result}
+    
+    # Verify we got all three distinct values
+    assert SearchOptions.VECTOR.value in results, "VECTOR route should be reachable"
+    assert SearchOptions.RECENT.value in results, "RECENT route should be reachable"
+    assert SearchOptions.NONE.value in results, "NONE route should be reachable"
+    
+    # Verify all are distinct
+    assert len(results) == 3, f"Expected 3 distinct results, got {len(results)}: {results}"
     

@@ -34,6 +34,7 @@ where = ["src"]
 [dependency-groups]
 dev = [
     "py-spy>=0.4.1",
+    "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
     "ty>=0.0.1a24",
 ]

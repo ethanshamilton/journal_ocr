@@ -1,7 +1,7 @@
 import os
 import backend.navigation as navigation
 
-SAMPLE_DATA_FOLDER = "data/sample_data"
+SAMPLE_DATA_FOLDER = "../data/sample_data"
 
 def test_crawl_journal_entries():
     """ Test the `crawl_journal_entries() function using sample data. """

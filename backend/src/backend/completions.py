@@ -21,7 +21,7 @@ from pdf2image import convert_from_path
 
 from backend.baml_client.async_client import b
 from backend.baml_client.types import SearchOptions
-from backend.models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis
+from backend.models import ChatRequest, DirectChatResponse, ComprehensiveAnalysis
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

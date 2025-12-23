@@ -1,5 +1,6 @@
 # completions.py
 # code for dealing with LLM stuff
+import backend.baml_client.async_client
 import os
 import asyncio
 from typing import Literal, AsyncGenerator
@@ -16,8 +17,11 @@ from io import BytesIO
 from google import genai
 from openai import OpenAI, AsyncOpenAI
 from dotenv import load_dotenv
-from backend.models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis
 from pdf2image import convert_from_path
+
+from backend.baml_client.async_client import b
+from backend.baml_client.types import SearchOptions
+from backend.models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -132,14 +136,8 @@ def insert_transcription(file_path: str, transcription: str) -> None:
 
     logging.info(f"Updated transcription in {file_path}")
 
-async def intent_classifier(query: str) -> str:
-    client = instructor.from_openai(async_openai)
-    response = await client.chat.completions.create(
-        model="gpt-5-mini-2025-08-07",
-        response_model=QueryIntent,
-        messages=[{"role": "user", "content": f"Determine which retrieval method is best for the following query: {query}"}]
-    )
-    return response.intent
+async def intent_classifier(query: str) -> SearchOptions:
+    return await b.IntentClassifier(query)
 
 async def query_llm(prompt: str, provider: str, model: str):
     """ Query any of the supported LLM providers and models. """

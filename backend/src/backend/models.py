@@ -6,23 +6,6 @@ from pydantic import BaseModel, Field
 
 ### context engineering
 
-class SearchOptions(str, Enum):
-    RECENT = "recent"
-    VECTOR = "vector"
-    NONE = "none"
-    # RECENT = Field(
-    #     "recent", 
-    #     description="Retrieves most recent journal entries. Trigger words: recently, lately, over the past N time frame, etc."
-    # )
-    # # DATE = Field("date", description="Retrieves journal entries from a specific date range")
-    # VECTOR = Field(
-    #     "vector", 
-    #     description="Uses vector similarity to retrieve semantically similar documents. Use this as a default option."
-    # )
-
-class QueryIntent(BaseModel):
-    intent: SearchOptions
-
 class DirectChatResponse(BaseModel):
     """used as response model for LLM call"""
     response: str

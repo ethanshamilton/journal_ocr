@@ -1,5 +1,5 @@
 import os
-import src.navigation as navigation
+import backend.navigation as navigation
 
 SAMPLE_DATA_FOLDER = "data/sample_data"
 

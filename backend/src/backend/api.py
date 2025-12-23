@@ -5,9 +5,9 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from flows import comprehensive_analysis_flow, default_llm_flow, default_llm_flow_stream
-from lancedb_client import AsyncLocalLanceDB
-from models import (
+from backend.flows import comprehensive_analysis_flow, default_llm_flow, default_llm_flow_stream
+from backend.lancedb_client import AsyncLocalLanceDB
+from backend.models import (
     ChatRequest, ChatResponse,
     CreateThreadRequest, CreateThreadResponse, Thread,
     Message, AddMessageRequest, UpdateThreadRequest

@@ -4,9 +4,9 @@ import tiktoken
 from datetime import datetime
 from typing import AsyncGenerator
 
-from completions import intent_classifier, get_embedding, chat_response, chat_response_stream, comprehensive_analysis
-from lancedb_client import AsyncLocalLanceDB
-from models import ChatRequest, ChatResponse, DirectChatResponse, Entry, SearchOptions, RetrievedDoc
+from backend.completions import intent_classifier, get_embedding, chat_response, chat_response_stream, comprehensive_analysis
+from backend.lancedb_client import AsyncLocalLanceDB
+from backend.models import ChatRequest, ChatResponse, DirectChatResponse, Entry, SearchOptions, RetrievedDoc
 
 async def comprehensive_analysis_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> dict:
     print("running comprehensive analysis")

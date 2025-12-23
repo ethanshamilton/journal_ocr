@@ -1,5 +1,5 @@
-from completions import get_embedding
-from lancedb_client import LocalLanceDB
+from backend.completions import get_embedding
+from backend.lancedb_client import LocalLanceDB
 
 lance = LocalLanceDB("lancedb-experiment")
 lance.startup_ingest()

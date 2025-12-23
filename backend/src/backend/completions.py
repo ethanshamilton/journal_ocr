@@ -16,7 +16,7 @@ from io import BytesIO
 from google import genai
 from openai import OpenAI, AsyncOpenAI
 from dotenv import load_dotenv
-from models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis
+from backend.models import ChatRequest, DirectChatResponse, QueryIntent, ComprehensiveAnalysis
 from pdf2image import convert_from_path
 
 load_dotenv()

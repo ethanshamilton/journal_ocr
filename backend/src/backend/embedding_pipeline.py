@@ -11,9 +11,9 @@ from rich.progress import (
     TimeElapsedColumn, TimeRemainingColumn
 )
 
-import ingest as i
-import completions as c
-import navigation as nav
+import backend.ingest as i
+import backend.completions as c
+import backend.navigation as nav
 
 load_dotenv()
 

@@ -22,6 +22,13 @@ from backend.baml_client.types import SearchOptions, AnalysisStep
 from baml_py import ClientRegistry
 from backend.models import ChatRequest, ComprehensiveAnalysis
 
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+google_client = genai.Client(api_key=GOOGLE_API_KEY)
+async_openai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
 def check_image_size(encoded_image: str, max_size_mb: int=20) -> bool:
     """ Ensure image doesn't exceed maximum file size. """
     img_bytes = base64.b64decode(encoded_image)
@@ -126,11 +133,6 @@ def insert_transcription(file_path: str, transcription: str) -> None:
 async def intent_classifier(query: str) -> SearchOptions:
     return await b.IntentClassifier(query)
 
-async def prompt_generator(request: ChatRequest, prompt: str, step: AnalysisStep) -> str:
-    cr = ClientRegistry()
-    cr.set_primary(f"{request.provider}/{request.model}")
-    return await b.PromptGenerator(prompt, step, {"client_registry": cr})
-
 async def chat_response(request: ChatRequest, chat_history: list, entries_str: str) -> str:
     cr = ClientRegistry()
     cr.set_primary(f"{request.provider}/{request.model}")
@@ -152,62 +154,6 @@ async def chat_response(request: ChatRequest, chat_history: list, entries_str: s
     messages_str = "\n\n".join(messages_intermediate)
 
     return await b.DirectChat(messages_str, entries_str, {"client_registry": cr})
-
-async def comprehensive_analysis(
-    request: ChatRequest,
-    chat_history: list,
-    entries_str: str,
-    step: AnalysisStep
-) -> ComprehensiveAnalysis:
-    client = _get_async_instructor_client(request.provider)
-
-    instructions = await prompt_generator(request, request.query, step)
-    print("Analyst Instructions:", instructions)
-
-    chat_history.append({
-        "role": "user",
-        "content": f"""
-        <INSTRUCTIONS>
-        {instructions}
-        </INSTRUCTIONS>
-        <QUERY>
-        {request.query}
-        </QUERY>
-        <ENTRIES>
-        {entries_str}
-        </ENTRIES>
-        """
-    })
-
-    max_retries = 10
-    base_delay = 1
-
-    for attempt in range(max_retries):
-        try:
-            return await client.chat.completions.create(
-                model=request.model,
-                response_model=ComprehensiveAnalysis,
-                messages=chat_history,
-            )
-        except Exception as e:
-            error_str = str(e).lower()
-
-            # check for rate limit errors
-            if any(keyword in error_str for keyword in ['rate limit', 'rate_limit', 'too many requests', 'quota exceeded', '429']):
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)  # exponential backoff
-                    print(f"rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
-                    await asyncio.sleep(delay)
-                    continue
-                else:
-                    print("max retries exceeded for rate limit, returning error")
-                    raise Exception(f"rate limit exceeded after {max_retries} attempts: {e}")
-            else:
-                # non-rate-limit error, re-raise immediately
-                raise e
-
-    # this should never be reached, but just in case
-    raise Exception("unexpected error in analyze_year retry logic")
 
 async def _transcribe_single_image(image: str, tags: str) -> str:
     """Transcribe a single image using GPT-4o."""

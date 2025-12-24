@@ -5,106 +5,9 @@ from datetime import datetime
 from typing import AsyncGenerator
 
 from backend.baml_client.types import SearchOptions, AnalysisStep
-from backend.completions import intent_classifier, get_embedding, chat_response, comprehensive_analysis
+from backend.completions import intent_classifier, get_embedding, chat_response 
 from backend.lancedb_client import AsyncLocalLanceDB
 from backend.models import ChatRequest, ChatResponse, Entry, RetrievedDoc
-
-async def comprehensive_analysis_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> dict:
-    print("running comprehensive analysis")
-
-    encoder = tiktoken.get_encoding("cl100k_base")
-    tokens_this_minute = 0
-    minute_start = time.time()
-    TPM_LIMIT = 30_000
-
-    # prepare chat history
-    chat_history = await _load_chat_history(lance, req)
-
-    # iterate through years from 2018 to present
-    current_year = datetime.now().year
-    years = list(range(2018, current_year + 1))
-
-    analyses = []
-    for year in years:
-        print(f"\nprocessing year: {year}")
-        entries = await lance.get_entries_by_date_range(f"{year}-01-01", f"{year}-12-31")
-        chunks = _chunk_entries_by_tokens(entries, encoder, (TPM_LIMIT-2000))
-
-        subyear_analyses = []
-        for chunk in chunks:
-            if chunk == "":
-                continue
-
-            print(type(chunk))
-            print(chunk[0])
-            token_count = int(len(encoder.encode(chunk)) * 1.05)
-            print(f"token count for {year}: {token_count}")
-
-            # check rate limiting
-            elapsed = time.time() - minute_start
-            if elapsed >= 60:
-                tokens_this_minute = 0
-                minute_start = time.time()
-
-            if tokens_this_minute + token_count > TPM_LIMIT:
-                wait_time = 60 - elapsed
-                print(f"approaching TPM limit, waiting: {wait_time:.1f}s")
-                await asyncio.sleep(wait_time)
-                tokens_this_minute = 0
-                minute_start = time.time()
-
-            if len(chunks) == 1:
-                analysis = await comprehensive_analysis(req, [], chunk, AnalysisStep.YEAR)
-                analyses.append(analysis)
-                print(f"\nreasoning: {analysis.reasoning}\n\nanalysis: {analysis.analysis}\n\nexcerpts: {analysis.excerpts}\n")
-            elif len(chunks) != 1:
-                analysis = await comprehensive_analysis(req, [], chunk, AnalysisStep.YEAR)
-                subyear_analyses.append(analysis)
-                print(f"\nreasoning: {analysis.reasoning}\n\nanalysis: {analysis.analysis}\n\nexcerpts: {analysis.excerpts}\n")
-
-        if len(subyear_analyses) != 0:
-            subyear_analyses_str = ""
-            for analysis in subyear_analyses:
-                subyear_analyses_str += f"""
-                <ANALYSIS>{analysis.analysis}</ANALYSIS>
-                <EXCERPTS>{analysis.excerpts}</EXCERPTS>
-                """
-            analysis = await comprehensive_analysis(req, [], subyear_analyses_str, AnalysisStep.YEAR)
-            analyses.append(analysis)
-            print(f"\nreasoning: {analysis.reasoning}\n\nanalysis: {analysis.analysis}\n\nexcerpts: {analysis.excerpts}\n")
-
-    analyses_str = ""
-    for analysis in analyses:
-        analyses_str += f"""
-        <ANALYSIS>{analysis.analysis}</ANALYSIS>
-        <EXCERPTS>{analysis.excerpts}</EXCERPTS>
-        """
-    final_analysis = await comprehensive_analysis(req, chat_history, analyses_str, AnalysisStep.FINAL)
-    print(f"\nFINAL ANALYSIS\n\nreasoning: {final_analysis.reasoning}\n\nanalysis: {final_analysis.analysis}\n\nexcerpts: {final_analysis.excerpts}\n")
-
-    # prepare result for caching
-    result = {
-        "query": req.query,
-        "provider": req.provider,
-        "model": req.model,
-        "timestamp": datetime.now().isoformat(),
-        "year_analyses": [
-            {
-                "year": year,
-                "reasoning": analysis.reasoning,
-                "analysis": analysis.analysis,
-                "excerpts": analysis.excerpts
-            }
-            for year, analysis in zip(years, analyses)
-        ],
-        "final_analysis": {
-            "reasoning": final_analysis.reasoning,
-            "analysis": final_analysis.analysis,
-            "excerpts": final_analysis.excerpts
-        }
-    }
-
-    return result
 
 async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatResponse:
     entries = []
@@ -151,33 +54,6 @@ async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatRe
     llm_response = await chat_response(req, chat_history, entries_str)
 
     return ChatResponse(response=llm_response, docs=response_docs, thread_id=req.thread_id)
-
-def _chunk_entries_by_tokens(entries: list[Entry], encoder: tiktoken.Encoding, max_tokens_per_chunk: int = 28_000) -> list[str]:
-    chunks = []
-    current_chunk = []
-    current_tokens = 0
-
-    for entry in entries:
-        entry_dict = entry.model_dump(exclude={"embedding"})
-        entry_str = f"Entry {len(current_chunk) + 1}\n"
-        for k, v in entry_dict.items():
-            entry_str += f"    {k}: {v}\n"
-        entry_str += "\n"
-
-        entry_tokens = len(encoder.encode(entry_str))
-
-        if current_tokens + entry_tokens > max_tokens_per_chunk and current_chunk:
-            chunks.append("\n".join(current_chunk))
-            current_chunk = []
-            current_tokens = 0
-
-        current_chunk.append(entry_str)
-        current_tokens += entry_tokens
-
-    if current_chunk:
-        chunks.append("\n".join(current_chunk))
-
-    return chunks
 
 async def _load_chat_history(lance: AsyncLocalLanceDB, request: ChatRequest) -> list[dict]:
     # get thread history from lancedb if present

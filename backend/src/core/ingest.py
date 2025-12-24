@@ -86,7 +86,7 @@ def load_notes_to_df(embeddings_path: str, notes_dir: str):
                 logging.warning(f"no embedding for {date_part}")
                 missing_embeddings += 1
                 continue
-            
+
             row = {
                 "date": date.strftime("%Y-%m-%d"),
                 "title": date_part,
@@ -100,9 +100,3 @@ def load_notes_to_df(embeddings_path: str, notes_dir: str):
     df = pl.DataFrame(rows)
     logging.info(f"Number of missing embeddings: {missing_embeddings}")
     return df
-
-# if __name__ == "__main__":
-#     # wait_for_elasticsearch()
-#     # threads_df, messages_df = load_chats_to_dfs()
-#     # notes = load_notes_to_df()
-#     # create_chat_indexes()

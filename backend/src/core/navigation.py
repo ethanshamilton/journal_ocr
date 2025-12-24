@@ -1,6 +1,6 @@
 # navigation.py
 # this file contains all the functions for traversing the journal and
-# ensuring data standardization. 
+# ensuring data standardization.
 import os
 import re
 import yaml
@@ -23,7 +23,7 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> dict[list[tuple[str, st
         """ Checks if the file is a journal entry, which are either PDF or image files. """
         valid_extensions = {'.pdf', '.png', 'jpg', '.jpeg'}
         return any(filename.lower().endswith(ext) for ext in valid_extensions)
-    
+
     def get_markdown_path(entry_path):
         """ Generate corresponding markdown file path for a journal entry. """
         directory = os.path.dirname(entry_path)
@@ -31,7 +31,7 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> dict[list[tuple[str, st
         # Extract just the date part (removes AM/PM and extension)
         date_part = filename.split()[0]
         return os.path.join(directory, f"{date_part}.md")
-    
+
     def check_frontmatter(md_path: str) -> dict:
         """Returns a dict {transcription: bool, embedding: bool} based on YAML frontmatter."""
         result = {"transcription": False, "embedding": False}
@@ -42,7 +42,7 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> dict[list[tuple[str, st
 
         if not lines or lines[0].strip() != "---":
             return result
-        
+
         yaml_lines = []
         for line in lines[1:]:
             if line.strip() == "---":
@@ -57,7 +57,7 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> dict[list[tuple[str, st
         except yaml.YAMLError:
             pass
         return result
-    
+
     def process_directory(current_dir):
         """ Recursively process directories to find journal entries. """
         for item in os.listdir(current_dir):
@@ -71,7 +71,7 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> dict[list[tuple[str, st
                     with open(md_path, 'w') as f:
                         f.write(page_template.format(filename=item))
                     logging.info(f"Created new markdown file: {md_path}")
-                
+
                 # only add note to list if transcription isn't true in frontmatter
                 frontmatter = check_frontmatter(md_path)
                 if not frontmatter['transcription']:
@@ -80,7 +80,7 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> dict[list[tuple[str, st
                 if not frontmatter['embedding']:
                     to_embed.append(md_path)
                     logging.info(f"Added {full_path} to embedding list")
-    
+
     try:
         process_directory(root_dir)
         logging.info(f"Found {len(to_transcribe)} entries to transcribe and {len(to_embed)} entries to embed.")
@@ -94,7 +94,7 @@ def duplicate_folder(source_folder:str, target_folder:str) -> None:
     # check if target folder exists and remove it
     if os.path.exists(target_folder):
         shutil.rmtree(target_folder)
-    
+
     # copy source folder to target location
     shutil.copytree(source_folder, target_folder)
 
@@ -108,6 +108,6 @@ def extract_tags(root_dir: str) -> str:
         with open(file, "r", encoding="utf-8") as f:
             content = f.read()
             tags.update(tag_pattern.findall(content))
-    
+
     all_tags = sorted(tags)
     return " ".join(all_tags)

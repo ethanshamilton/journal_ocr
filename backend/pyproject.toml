@@ -30,6 +30,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["backend*", "core*", "pipeline*"]
 
 [dependency-groups]
 dev = [
@@ -41,4 +42,4 @@ dev = [
 
 [tool.ty.environment]
 # Multiple directories (priority order)
-root = ["./src"]
+root = ["./src", "./src/core", "./src/pipeline", "./src/backend"]

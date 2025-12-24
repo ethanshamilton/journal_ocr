@@ -78,3 +78,9 @@ class AddMessageRequest(BaseModel):
 
 class UpdateThreadRequest(BaseModel):
     title: str
+
+### ingestion pipeline
+
+class UnprocessedDocs(BaseModel):
+    to_transcribe: list[tuple[str, str]]
+    to_embed: list[str]

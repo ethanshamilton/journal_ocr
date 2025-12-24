@@ -1,4 +1,4 @@
-# lancedb.py
+# lancedb_client.py
 import uuid
 import logging
 from datetime import datetime
@@ -8,9 +8,9 @@ import lancedb
 import polars as pl
 import pyarrow as pa
 
-from backend.ingest import load_chats_to_dfs, load_notes_to_df
-from backend.models import Entry
-from backend.settings import settings
+from core.ingest import load_chats_to_dfs, load_notes_to_df
+from core.models import Entry
+from core.settings import settings
 
 logger = logging.getLogger(__name__)
 

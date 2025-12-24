@@ -4,10 +4,12 @@ import tiktoken
 from datetime import datetime
 from typing import AsyncGenerator
 
-from backend.baml_client.types import SearchOptions, AnalysisStep
-from backend.completions import intent_classifier, get_embedding, chat_response 
-from backend.lancedb_client import AsyncLocalLanceDB
-from backend.models import ChatRequest, ChatResponse, Entry, RetrievedDoc
+from core.baml_client.types import SearchOptions, AnalysisStep
+from core.lancedb_client import AsyncLocalLanceDB
+from core.models import ChatRequest, ChatResponse, Entry, RetrievedDoc
+from core.llm import get_embedding
+from backend.completions import intent_classifier, chat_response
+
 
 async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatResponse:
     entries = []
@@ -54,6 +56,7 @@ async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatRe
     llm_response = await chat_response(req, chat_history, entries_str)
 
     return ChatResponse(response=llm_response, docs=response_docs, thread_id=req.thread_id)
+
 
 async def _load_chat_history(lance: AsyncLocalLanceDB, request: ChatRequest) -> list[dict]:
     # get thread history from lancedb if present

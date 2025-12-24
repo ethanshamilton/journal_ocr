@@ -8,13 +8,15 @@ import shutil
 import logging
 from pathlib import Path
 
+from core.models import UnprocessedDocs
+
 page_template = """
 #day
 ### Page
 ![[{filename}]]
 """
 
-def crawl_journal_entries(root_dir:str="Daily Pages") -> dict[list[tuple[str, str]], list[str]]:
+def crawl_journal_entries(root_dir:str="Daily Pages") -> UnprocessedDocs:
     """ Recursively crawl through journal directories and identifies entries that need to be transcribed or embedded. """
     to_transcribe = []
     to_embed = []
@@ -87,7 +89,7 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> dict[list[tuple[str, st
     except Exception as e:
         logging.error(f"Error: {str(e)}")
         raise
-    return { "to_transcribe": to_transcribe, "to_embed": to_embed }
+    return UnprocessedDocs(to_transcribe=to_transcribe, to_embed=to_embed)
 
 def duplicate_folder(source_folder:str, target_folder:str) -> None:
     """ Delete target folder if it exists, then copy source folder to target folder. """

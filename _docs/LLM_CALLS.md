@@ -8,7 +8,7 @@ The instructor framework is used in **5 distinct locations** across the codebase
 
 ## Detailed Breakdown
 
-### 1. Intent Classification
+### 1. Intent Classification -- FIXED
 **Location:** `completions.py:135-142`  
 **Function:** `intent_classifier(query: str) -> str`  
 **Pydantic Model:** `QueryIntent` (models.py:23-24)  
@@ -39,7 +39,7 @@ The instructor framework is used in **5 distinct locations** across the codebase
 
 ---
 
-### 4. Direct Chat Response
+### 4. Direct Chat Response -- FIXED
 **Location:** `completions.py:205-236`  
 **Function:** `chat_response(request: ChatRequest, chat_history: list, entries_str: str) -> str`  
 **Pydantic Model:** `DirectChatResponse` (models.py:26-28)  
@@ -50,7 +50,7 @@ The instructor framework is used in **5 distinct locations** across the codebase
 
 ---
 
-### 5. Streaming Chat Response
+### 5. Streaming Chat Response -- REMOVED
 **Location:** `completions.py:238-266`  
 **Function:** `chat_response_stream(request: ChatRequest, chat_history: list, entries_str: str) -> AsyncGenerator[DirectChatResponse, None]`  
 **Pydantic Model:** `DirectChatResponse` (models.py:26-28)  

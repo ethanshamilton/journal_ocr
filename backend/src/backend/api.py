@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from backend.flows import comprehensive_analysis_flow, default_llm_flow, default_llm_flow_stream
+from backend.flows import comprehensive_analysis_flow, default_llm_flow 
 from backend.lancedb_client import AsyncLocalLanceDB
 from backend.models import (
     ChatRequest, ChatResponse,
@@ -48,25 +48,6 @@ async def journal_chat(
     db: AsyncLocalLanceDB = Depends(get_db)
 ) -> ChatResponse:
     return await default_llm_flow(db, request)
-
-
-@app.post("/journal_chat/stream")
-async def journal_chat_stream(
-    request: ChatRequest,
-    db: AsyncLocalLanceDB = Depends(get_db)
-):
-    """Streaming endpoint for journal chat responses."""
-    async def generate():
-        async for partial, docs in default_llm_flow_stream(db, request):
-            chunk_data = {
-                "response": partial.response if partial.response else "",
-                "docs": [doc.model_dump() for doc in docs] if docs else []
-            }
-            yield f"data: {json.dumps(chunk_data)}\n\n"
-        yield "data: [DONE]\n\n"
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
-
 
 @app.post("/comprehensive_analysis")
 async def comprehensive_journal_analysis(

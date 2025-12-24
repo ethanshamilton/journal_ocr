@@ -21,7 +21,8 @@ from pdf2image import convert_from_path
 
 from backend.baml_client.async_client import b
 from backend.baml_client.types import SearchOptions
-from backend.models import ChatRequest, DirectChatResponse, ComprehensiveAnalysis
+from baml_py import ClientRegistry
+from backend.models import ChatRequest, ComprehensiveAnalysis
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -201,7 +202,8 @@ def _get_async_instructor_client(provider: str) -> instructor.AsyncInstructor:
         raise ValueError(f"Unsupported provider: {provider}")
 
 async def chat_response(request: ChatRequest, chat_history: list, entries_str: str) -> str:
-    client = _get_async_instructor_client(request.provider)
+    cr = ClientRegistry()
+    cr.set_primary(f"{request.provider}/{request.model}")
 
     # prepare messages list
     chat_history.append({
@@ -211,57 +213,15 @@ async def chat_response(request: ChatRequest, chat_history: list, entries_str: s
         """
     })
 
-    # update entries in chat history; remove old entries and load new ones
-    chat_history = [msg for msg in chat_history if "<ENTRIES>" not in msg.get("content", "")]
-    chat_history.append({
-        "role": "user",
-        "content": f"<ENTRIES>{entries_str}</ENTRIES>"
-    })
-
-    response = await client.chat.completions.create(
-        model=request.model,
-        response_model=DirectChatResponse,
-        messages=chat_history,
-    )
-
-    print("\n---")
-    print("PRINTING CHAT HISTORY")
-    print("---\n")
-
+    # convert messages to string for LLM
+    messages_intermediate = []
     for msg in chat_history:
-        print(f"role: {msg['role']}\ncontent: {msg['content'][:100]}...\n")
+        role = msg.get("role", "unknown")
+        content = msg.get("content", "")
+        messages_intermediate.append(f"[{role.upper()}]: {content}")
+    messages_str = "\n\n".join(messages_intermediate)
 
-    return response.response
-
-async def chat_response_stream(
-    request: ChatRequest,
-    chat_history: list,
-    entries_str: str
-) -> AsyncGenerator[DirectChatResponse, None]:
-    """Async generator for streaming chat responses."""
-    client = _get_async_instructor_client(request.provider)
-
-    # prepare messages list
-    chat_history.append({
-        "role": "user",
-        "content": f"""
-        <QUERY>{request.query}</QUERY>
-        """
-    })
-
-    # update entries in chat history; remove old entries and load new ones
-    chat_history = [msg for msg in chat_history if "<ENTRIES>" not in msg.get("content", "")]
-    chat_history.append({
-        "role": "user",
-        "content": f"<ENTRIES>{entries_str}</ENTRIES>"
-    })
-
-    async for partial in client.chat.completions.create_partial(
-        model=request.model,
-        response_model=DirectChatResponse,
-        messages=chat_history,
-    ):
-        yield partial
+    return await b.DirectChat(messages_str, entries_str)
 
 async def comprehensive_analysis(
     request: ChatRequest,

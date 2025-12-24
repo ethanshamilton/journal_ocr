@@ -1,7 +1,9 @@
+
+// INTENT CLASSIFICATION
+
 enum SearchOptions {
   VECTOR
   RECENT
-  NONE
 }
 
 function IntentClassifier(query: string) -> SearchOptions {
@@ -17,4 +19,24 @@ function IntentClassifier(query: string) -> SearchOptions {
     {{ctx.output_format}}
     </OUTPUT_FORMAT>
   "#
+}
+
+// DIRECT CHAT
+
+function DirectChat(messages: string, entries: string) -> string {
+    client "openai/gpt-5"
+    prompt #"
+        <INSTRUCTIONS>
+        Provide an empathetic and analytical response to the user.
+        </INSTRUCTIONS>
+        <RELEVANT_ENTRIES>
+        {{entries}}
+        </RELEVANT_ENTRIES>
+        <CHAT_HISTORY>
+        {{messages}}
+        </CHAT_HISTORY>
+        <OUTPUT_FORMAT>
+        {{ctx.output_format}}
+        </OUTPUT_FORMAT>
+    "#
 }

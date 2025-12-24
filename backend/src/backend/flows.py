@@ -4,9 +4,10 @@ import tiktoken
 from datetime import datetime
 from typing import AsyncGenerator
 
-from backend.completions import intent_classifier, get_embedding, chat_response, chat_response_stream, comprehensive_analysis
+from backend.baml_client.types import SearchOptions
+from backend.completions import intent_classifier, get_embedding, chat_response, comprehensive_analysis
 from backend.lancedb_client import AsyncLocalLanceDB
-from backend.models import ChatRequest, ChatResponse, DirectChatResponse, Entry, SearchOptions, RetrievedDoc
+from backend.models import ChatRequest, ChatResponse, Entry, RetrievedDoc
 
 async def comprehensive_analysis_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> dict:
     print("running comprehensive analysis")
@@ -150,57 +151,6 @@ async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatRe
     llm_response = await chat_response(req, chat_history, entries_str)
 
     return ChatResponse(response=llm_response, docs=response_docs, thread_id=req.thread_id)
-
-
-async def default_llm_flow_stream(
-    lance: AsyncLocalLanceDB,
-    req: ChatRequest
-) -> AsyncGenerator[tuple[DirectChatResponse, list[RetrievedDoc]], None]:
-    """Streaming version of default_llm_flow."""
-    entries = []
-    response_docs = []
-    entries_str = ""
-
-    if req.existing_docs:
-        entries_str = "Here are the relevant journal entries from our previous conversation:\n"
-        for i, doc in enumerate(req.existing_docs, 1):
-            entries_str += f"Entry {i}:\n"
-            entries_str += f"  title: {doc.get('title', 'Untitled')}\n"
-            entries_str += f"  content: {doc.get('content', '')}\n"
-            entries_str += "\n"
-    else:
-        # do normal retrieval
-        query_intent = await intent_classifier(req.query)
-        print("query intent:", query_intent)
-
-        if query_intent == SearchOptions.VECTOR:
-            query_embedding = await get_embedding(req.query)
-            entries = await lance.get_similar_entries(query_embedding, req.top_k)
-            for i, (entry, distance) in enumerate(entries, 1):
-                entry_dict = entry.model_dump(exclude={"embedding"})
-                entries_str += f"Entry {i} (Distance: {distance})\n"
-                for k, v in entry_dict.items():
-                    entries_str += f"   {k}: {v}\n"
-                entries_str += "\n"
-                entry_for_response = entry.model_copy(update={"embedding": None})
-                response_docs.append(RetrievedDoc(entry=entry_for_response, distance=distance))
-
-        elif query_intent == SearchOptions.RECENT:
-            entries = await lance.get_recent_entries()
-            for i, entry in enumerate(entries, 1):
-                entry_dict = entry.model_dump(exclude={"embedding"})
-                entries_str += f"Entry {i}:\n"
-                for k, v in entry_dict.items():
-                    entries_str += f"   {k}: {v}\n"
-                entries_str += "\n"
-                entry_for_response = entry.model_copy(update={"embedding": None})
-                response_docs.append(RetrievedDoc(entry=entry_for_response, distance=None))
-
-    chat_history = await _load_chat_history(lance, req)
-
-    async for partial in chat_response_stream(req, chat_history, entries_str):
-        yield partial, response_docs
-
 
 def _chunk_entries_by_tokens(entries: list[Entry], encoder: tiktoken.Encoding, max_tokens_per_chunk: int = 28_000) -> list[str]:
     chunks = []

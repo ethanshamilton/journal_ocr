@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from backend.flows import comprehensive_analysis_flow, default_llm_flow 
+from backend.flows import default_llm_flow 
 from backend.lancedb_client import AsyncLocalLanceDB
 from backend.models import (
     ChatRequest, ChatResponse,
@@ -48,13 +48,6 @@ async def journal_chat(
     db: AsyncLocalLanceDB = Depends(get_db)
 ) -> ChatResponse:
     return await default_llm_flow(db, request)
-
-@app.post("/comprehensive_analysis")
-async def comprehensive_journal_analysis(
-    request: ChatRequest,
-    db: AsyncLocalLanceDB = Depends(get_db)
-) -> dict:
-    return await comprehensive_analysis_flow(db, request)
 
 ### thread management
 

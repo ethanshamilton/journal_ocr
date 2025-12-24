@@ -1,7 +1,5 @@
 # completions.py
 # code for dealing with LLM stuff
-import backend.baml_client.async_client
-import os
 import asyncio
 import instructor
 import yaml
@@ -14,20 +12,16 @@ from PIL.Image import Image as PILImage
 from io import BytesIO
 from google import genai
 from openai import OpenAI, AsyncOpenAI
-from dotenv import load_dotenv
 from pdf2image import convert_from_path
+from baml_py import ClientRegistry
 
 from backend.baml_client.async_client import b
 from backend.baml_client.types import SearchOptions, AnalysisStep
-from baml_py import ClientRegistry
 from backend.models import ChatRequest, ComprehensiveAnalysis
+from backend.settings import settings
 
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-google_client = genai.Client(api_key=GOOGLE_API_KEY)
-async_openai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+google_client = genai.Client(api_key=settings.credentials.GOOGLE_API_KEY)
+async_openai = AsyncOpenAI(api_key=settings.credentials.OPENAI_API_KEY)
 
 def check_image_size(encoded_image: str, max_size_mb: int=20) -> bool:
     """ Ensure image doesn't exceed maximum file size. """
@@ -63,7 +57,7 @@ async def get_embedding(text: str) -> list[float]:
     """Runs text transcription through Gemini embedding model, retrying on 429 errors."""
     try:
         response = await google_client.aio.models.embed_content(
-            model="gemini-embedding-exp-03-07",
+            model=settings.models.embedding_model,
             contents=text,
         )
         if response.embeddings and len(response.embeddings) > 0:
@@ -156,9 +150,9 @@ async def chat_response(request: ChatRequest, chat_history: list, entries_str: s
     return await b.DirectChat(messages_str, entries_str, {"client_registry": cr})
 
 async def _transcribe_single_image(image: str, tags: str) -> str:
-    """Transcribe a single image using GPT-4o."""
+    """Transcribe a single image using OpenAI models."""
     response = await async_openai.chat.completions.create(
-        model="gpt-4o",
+        model=settings.models.transcription_model,
         messages=[
             {
                 'role': 'user',

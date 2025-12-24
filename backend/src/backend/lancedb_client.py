@@ -1,5 +1,4 @@
 # lancedb.py
-import os
 import uuid
 import logging
 from datetime import datetime
@@ -8,12 +7,11 @@ from typing import Optional
 import lancedb
 import polars as pl
 import pyarrow as pa
-from dotenv import load_dotenv
 
 from backend.ingest import load_chats_to_dfs, load_notes_to_df
 from backend.models import Entry
+from backend.settings import settings
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
 
@@ -28,9 +26,9 @@ class AsyncLocalLanceDB:
 
     async def startup_ingest(self) -> None:
         logging.info("[lancedb] beginning startup ingestion")
-        chats = os.getenv("CHATS_LOCAL_PATH")
-        embeddings = os.getenv("EMBEDDINGS_PATH")
-        journal = os.getenv("JOURNAL_PATH")
+        chats = settings.lancedb.chat_storage_path
+        embeddings = settings.lancedb.embedding_storage_path
+        journal = settings.lancedb.journal_storage_path
 
         if not (chats and embeddings and journal):
             raise FileNotFoundError("ensure chats, embeddings, and journal data are available")

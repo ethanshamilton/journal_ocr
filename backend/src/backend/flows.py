@@ -4,7 +4,7 @@ import tiktoken
 from datetime import datetime
 from typing import AsyncGenerator
 
-from backend.baml_client.types import SearchOptions
+from backend.baml_client.types import SearchOptions, AnalysisStep
 from backend.completions import intent_classifier, get_embedding, chat_response, comprehensive_analysis
 from backend.lancedb_client import AsyncLocalLanceDB
 from backend.models import ChatRequest, ChatResponse, Entry, RetrievedDoc
@@ -54,11 +54,11 @@ async def comprehensive_analysis_flow(lance: AsyncLocalLanceDB, req: ChatRequest
                 minute_start = time.time()
 
             if len(chunks) == 1:
-                analysis = await comprehensive_analysis(req, [], chunk, "YEAR")
+                analysis = await comprehensive_analysis(req, [], chunk, AnalysisStep.YEAR)
                 analyses.append(analysis)
                 print(f"\nreasoning: {analysis.reasoning}\n\nanalysis: {analysis.analysis}\n\nexcerpts: {analysis.excerpts}\n")
             elif len(chunks) != 1:
-                analysis = await comprehensive_analysis(req, [], chunk, "YEAR")
+                analysis = await comprehensive_analysis(req, [], chunk, AnalysisStep.YEAR)
                 subyear_analyses.append(analysis)
                 print(f"\nreasoning: {analysis.reasoning}\n\nanalysis: {analysis.analysis}\n\nexcerpts: {analysis.excerpts}\n")
 
@@ -69,7 +69,7 @@ async def comprehensive_analysis_flow(lance: AsyncLocalLanceDB, req: ChatRequest
                 <ANALYSIS>{analysis.analysis}</ANALYSIS>
                 <EXCERPTS>{analysis.excerpts}</EXCERPTS>
                 """
-            analysis = await comprehensive_analysis(req, [], subyear_analyses_str, "YEAR")
+            analysis = await comprehensive_analysis(req, [], subyear_analyses_str, AnalysisStep.YEAR)
             analyses.append(analysis)
             print(f"\nreasoning: {analysis.reasoning}\n\nanalysis: {analysis.analysis}\n\nexcerpts: {analysis.excerpts}\n")
 
@@ -79,7 +79,7 @@ async def comprehensive_analysis_flow(lance: AsyncLocalLanceDB, req: ChatRequest
         <ANALYSIS>{analysis.analysis}</ANALYSIS>
         <EXCERPTS>{analysis.excerpts}</EXCERPTS>
         """
-    final_analysis = await comprehensive_analysis(req, chat_history, analyses_str, "FINAL")
+    final_analysis = await comprehensive_analysis(req, chat_history, analyses_str, AnalysisStep.FINAL)
     print(f"\nFINAL ANALYSIS\n\nreasoning: {final_analysis.reasoning}\n\nanalysis: {final_analysis.analysis}\n\nexcerpts: {final_analysis.excerpts}\n")
 
     # prepare result for caching

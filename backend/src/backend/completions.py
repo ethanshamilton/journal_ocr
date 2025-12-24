@@ -3,13 +3,11 @@
 import backend.baml_client.async_client
 import os
 import asyncio
-from typing import Literal, AsyncGenerator
 import instructor
 import yaml
 import time
 import base64
 import logging
-import anthropic
 from anthropic import AsyncAnthropic
 from PIL import Image
 from PIL.Image import Image as PILImage
@@ -20,21 +18,9 @@ from dotenv import load_dotenv
 from pdf2image import convert_from_path
 
 from backend.baml_client.async_client import b
-from backend.baml_client.types import SearchOptions
+from backend.baml_client.types import SearchOptions, AnalysisStep
 from baml_py import ClientRegistry
 from backend.models import ChatRequest, ComprehensiveAnalysis
-
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-# Sync clients (kept for backward compatibility)
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-google_client = genai.Client(api_key=GOOGLE_API_KEY)
-
-# Async clients
-async_openai = AsyncOpenAI(api_key=OPENAI_API_KEY)
-async_anthropic = AsyncAnthropic()
 
 def check_image_size(encoded_image: str, max_size_mb: int=20) -> bool:
     """ Ensure image doesn't exceed maximum file size. """
@@ -140,66 +126,10 @@ def insert_transcription(file_path: str, transcription: str) -> None:
 async def intent_classifier(query: str) -> SearchOptions:
     return await b.IntentClassifier(query)
 
-async def query_llm(prompt: str, provider: str, model: str):
-    """ Query any of the supported LLM providers and models. """
-    if provider == "anthropic":
-        response = await async_anthropic.messages.create(
-            model=model,
-            max_tokens=1024,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response.content[0].text
-    elif provider == "openai":
-        response = await async_openai.responses.create(
-            model=model,
-            input=prompt,
-        )
-        return response.output_text
-
-async def prompt_generator(client: instructor.AsyncInstructor, prompt: str, step: Literal["SUBYEAR", "YEAR", "FINAL"]) -> str:
-    return await client.chat.completions.create(
-        response_model=str,
-        messages=[{
-            "role": "user",
-            "content": f"""
-            Generate a medium length prompt for an analyst language model that will guide the analyst to
-            most effectively process the given data. Here are some examples...
-
-            Here is an example of a prompt that was used before:
-
-            <EXAMPLE>
-            Please analyze all the journal entries shown to provide a comprehensive analysis of how they pertain to the query.
-            This message will be used to provide compressed context about the year you are analyzing to a further LLM call that
-            is responsible for synthesizing an overall answer to the user's query.
-            </EXAMPLE>
-
-            DO NOT PROVIDE A STRUCTURED OUTPUT SCHEMA. This will be handled elsewhere.
-
-            The goal is to dynamically tune the analyst model to attend to the action the user is requesting.
-
-            There are three types of analyst model: subyear, year, and final analysis models. Year models provide intermediate reports
-            which will be processed by the final analysis model. Subyear models are used in cases where a full yearly analysis is too
-            large for a model's context window. The result of the final analysis model will be shown to the
-            user. Be sure to convey any relevant information about the step in the process to the analyst model so it is able
-            to effectively provide information to the consuming entity.
-
-            USER QUERY: {prompt}
-
-            STEP: {step}
-            """
-        }]
-    )
-
-def _get_async_instructor_client(provider: str) -> instructor.AsyncInstructor:
-    """Get the appropriate async instructor client for the given provider."""
-    if provider == "anthropic":
-        return instructor.from_anthropic(async_anthropic)
-    elif provider == "openai":
-        return instructor.from_openai(async_openai)
-    else:
-        raise ValueError(f"Unsupported provider: {provider}")
+async def prompt_generator(request: ChatRequest, prompt: str, step: AnalysisStep) -> str:
+    cr = ClientRegistry()
+    cr.set_primary(f"{request.provider}/{request.model}")
+    return await b.PromptGenerator(prompt, step, {"client_registry": cr})
 
 async def chat_response(request: ChatRequest, chat_history: list, entries_str: str) -> str:
     cr = ClientRegistry()
@@ -221,17 +151,17 @@ async def chat_response(request: ChatRequest, chat_history: list, entries_str: s
         messages_intermediate.append(f"[{role.upper()}]: {content}")
     messages_str = "\n\n".join(messages_intermediate)
 
-    return await b.DirectChat(messages_str, entries_str)
+    return await b.DirectChat(messages_str, entries_str, {"client_registry": cr})
 
 async def comprehensive_analysis(
     request: ChatRequest,
     chat_history: list,
     entries_str: str,
-    step: Literal["SUBYEAR", "YEAR", "FINAL"]
+    step: AnalysisStep
 ) -> ComprehensiveAnalysis:
     client = _get_async_instructor_client(request.provider)
 
-    instructions = await prompt_generator(client, request.query, step)
+    instructions = await prompt_generator(request, request.query, step)
     print("Analyst Instructions:", instructions)
 
     chat_history.append({

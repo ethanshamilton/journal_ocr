@@ -6,10 +6,6 @@ from pydantic import BaseModel, Field
 
 ### context engineering
 
-class DirectChatResponse(BaseModel):
-    """used as response model for LLM call"""
-    response: str
-
 class ComprehensiveAnalysis(BaseModel):
     reasoning: str = Field(description="Provide reasoning that will help answer the question effectively.")
     analysis: str = Field(description="Provide your formal analysis.")

@@ -110,79 +110,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     }])
   }
 
-  const analyzeComprehensive = async () => {
-    if (!inputText.trim()) return
-
-    const query = inputText
-    const userMessage: Message = {
-      id: Date.now(),
-      text: `Analyzing: ${query}`,
-      sender: 'user',
-      timestamp: new Date()
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    setInputText('')
-    setIsLoading(true)
-
-    try {
-      const result = await apiService.comprehensiveAnalysis({
-        query,
-        top_k: 0,
-        provider: selectedModel.provider,
-        model: selectedModel.model,
-        thread_id: currentThreadId || "",
-        message_history: isThreadSaved ? undefined : messages
-      })
-
-      // format the comprehensive analysis result
-      let analysisText = `# Comprehensive Analysis\n\n`
-      analysisText += `**Query:** ${result.query}\n`
-      analysisText += `**Model:** ${result.provider}/${result.model}\n`
-      analysisText += `**Timestamp:** ${result.timestamp}\n\n`
-      
-      analysisText += `## Final Analysis\n\n${result.final_analysis.analysis}\n\n`
-      
-      if (result.final_analysis.excerpts) {
-        analysisText += `## Key Excerpts\n\n${result.final_analysis.excerpts}\n\n`
-      }
-      
-      analysisText += `## Year-by-Year Analysis\n\n`
-      result.year_analyses.forEach((yearAnalysis: any) => {
-        analysisText += `### ${yearAnalysis.year}\n\n${yearAnalysis.analysis}\n\n`
-      })
-
-      const botMessage: Message = {
-        id: Date.now() + 1,
-        text: analysisText,
-        sender: 'assistant',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, botMessage])
-
-      // save messages to thread if we have one and it's saved
-      if (currentThreadId && isThreadSaved) {
-        try {
-          await apiService.addMessageToThread(currentThreadId, 'user', `Analyzing: ${query}`)
-          await apiService.addMessageToThread(currentThreadId, 'assistant', analysisText)
-        } catch (error) {
-          console.error('Error saving analysis messages to thread:', error)
-        }
-      }
-    } catch (error) {
-      console.error('Error running comprehensive analysis:', error)
-      const errorMessage: Message = {
-        id: Date.now() + 1,
-        text: 'Sorry, I encountered an error while running the comprehensive analysis. Please make sure the backend is running.',
-        sender: 'assistant',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const sendMessage = async () => {
     if (!inputText.trim()) return
 
@@ -365,22 +292,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
             rows={3}
             disabled={isLoading}
           />
-          <div className="button-group">
-            <button
-              onClick={sendMessage}
-              disabled={!inputText.trim() || isLoading}
-              className="send-button"
-            >
-              Chat
-            </button>
-            <button
-              onClick={analyzeComprehensive}
-              disabled={!inputText.trim() || isLoading}
-              className="analyze-button"
-            >
-              Analyze
-            </button>
-          </div>
+          <button
+            onClick={sendMessage}
+            disabled={!inputText.trim() || isLoading}
+            className="send-button"
+          >
+            Chat
+          </button>
         </div>
       </div>
     </div>

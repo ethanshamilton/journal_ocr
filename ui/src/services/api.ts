@@ -124,9 +124,4 @@ export const apiService = {
     })
     return response.data
   },
-
-  async comprehensiveAnalysis(request: ChatRequest): Promise<any> {
-    const response = await api.post('/comprehensive_analysis', request)
-    return response.data
-  },
 }

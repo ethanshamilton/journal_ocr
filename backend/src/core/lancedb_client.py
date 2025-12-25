@@ -26,9 +26,9 @@ class AsyncLocalLanceDB:
 
     async def startup_ingest(self) -> None:
         logging.info("[lancedb] beginning startup ingestion")
-        chats = settings.lancedb.chat_storage_path
-        embeddings = settings.lancedb.embedding_storage_path
-        journal = settings.lancedb.journal_storage_path
+        chats = settings.file_storage.chat_storage_path
+        embeddings = settings.file_storage.embedding_storage_path
+        journal = settings.file_storage.journal_storage_path
 
         if not (chats and embeddings and journal):
             raise FileNotFoundError("ensure chats, embeddings, and journal data are available")

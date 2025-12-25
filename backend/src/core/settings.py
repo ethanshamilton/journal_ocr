@@ -9,7 +9,7 @@ class Credentials(BaseModel):
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 
-class LanceDBSettings(BaseModel):
+class FileStorageSettings(BaseModel):
     chat_storage_path: str = "/Users/hamiltones/code/journal_ocr_ext/journal_ocr/data/chats.json"
     embedding_storage_path: str = "/Users/hamiltones/Documents/Journal/embeddings.json"
     journal_storage_path: str = "/Users/hamiltones/Documents/Journal/Daily Pages"
@@ -20,7 +20,7 @@ class ModelSettings(BaseModel):
 
 class Settings(BaseModel):
     credentials: Credentials = Credentials()
-    lancedb: LanceDBSettings = LanceDBSettings()
+    file_storage: FileStorageSettings = FileStorageSettings()
     models: ModelSettings = ModelSettings()
 
 settings = Settings()

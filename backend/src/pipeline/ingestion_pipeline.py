@@ -10,8 +10,8 @@ from pipeline.ingestion_ops import transcribe_docs, embed_docs
 
 async def main():
     # get docs for processing
-    files = crawl_journal_entries(settings.lancedb.journal_storage_path)
-    tags = extract_tags(settings.lancedb.journal_storage_path)
+    files = crawl_journal_entries(settings.file_storage.journal_storage_path)
+    tags = extract_tags(settings.file_storage.journal_storage_path)
 
     transcriptions = transcribe_docs(files.to_transcribe, tags)
     embeddings = embed_docs(files.to_embed)

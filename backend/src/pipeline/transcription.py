@@ -2,6 +2,7 @@
 # image encoding and transcription utilities for the pipeline
 import asyncio
 import base64
+import json
 import logging
 import yaml
 
@@ -175,3 +176,4 @@ def verify_image(encoded_image: str) -> None:
     image_data = base64.b64decode(encoded_image)
     image = Image.open(BytesIO(image_data))
     image.show()
+

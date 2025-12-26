@@ -26,11 +26,10 @@ def extract_tags(text: str) -> list[str]:
 def get_date_part(filepath):
     return os.path.basename(filepath).replace(".md", "")
 
-def load_chats_to_dfs(chats_file: str) -> (pl.DataFrame, pl.DataFrame):
+def load_chats_to_dfs(chats_file: str) -> tuple[pl.DataFrame, pl.DataFrame]:
     """ Loads chat history from local JSON export into separate Polars DataFrames for threads and messages. """
     if not os.path.exists(chats_file):
-        logging.error(f"Chats file not found at {chats_file}")
-        return None, None
+        raise FileNotFoundError(f"Chats not found at {chats_file}")
 
     with open(chats_file, 'r') as f:
         data = json.load(f)
@@ -49,9 +48,10 @@ def load_notes_to_df(embeddings_path: str, notes_dir: str):
     if os.path.exists(embeddings_path):
         try:
             with open(embeddings_path, 'r') as f:
-                data = json.load(f)
-                for k, v in data.items():
-                    embeddings_map[get_date_part(k)] = v
+                for line in f:
+                    if line.strip():
+                        entry = json.loads(line)
+                        embeddings_map[get_date_part(entry["path"])] = entry["embedding"]
         except Exception as e:
             logging.error(f"Failed to load embeddings: {e}")
 

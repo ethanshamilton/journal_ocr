@@ -11,16 +11,24 @@ class Credentials(BaseModel):
 
 class FileStorageSettings(BaseModel):
     chat_storage_path: str = "/Users/hamiltones/code/journal_ocr_ext/journal_ocr/data/chats.json"
-    embedding_storage_path: str = "/Users/hamiltones/Documents/Journal/embeddings.json"
-    journal_storage_path: str = "/Users/hamiltones/Documents/Journal/Daily Pages"
+    embedding_storage_path: str = "/Users/hamiltones/OneDrive/Journal/embeddings.jsonl"
+    journal_storage_path: str = "/Users/hamiltones/OneDrive/Journal/Daily Pages"
 
 class ModelSettings(BaseModel):
-    embedding_model: str = "gemini-embedding-exp-03-07" # Google models only
-    transcription_model: str = "gpt-5.2" # OpenAI models only
+    embedding_model: str = "gemini-embedding-001" # Google models only
+    transcription_model: str = "gpt-5" # OpenAI models only
+
+class TestSettings(BaseModel):
+    test_data_source_dir: str = "/Users/hamiltones/OneDrive/Journal/test"
+    test_data_dir_path: str = "/Users/hamiltones/code/journal_ocr_ext/test_data/test_journal"
+    sample_pdf_path: str = f"/Users/hamiltones/code/journal_ocr_ext/test_data/samples/sample.pdf"
+    sample_image_path: str = f"/Users/hamiltones/code/journal_ocr_ext/test_data/samples/sample.jpg"
+    test_embedding_storage_path: str = f"{test_data_dir_path}/embeddings.jsonl"
 
 class Settings(BaseModel):
     credentials: Credentials = Credentials()
     file_storage: FileStorageSettings = FileStorageSettings()
     models: ModelSettings = ModelSettings()
+    test_settings: TestSettings = TestSettings()
 
 settings = Settings()

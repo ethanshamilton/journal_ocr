@@ -25,3 +25,8 @@
 - **State**: useState/useEffect hooks for local state management
 - **API calls**: Centralize in `services/api.ts` using axios
 
+## Agent Behavior Model
+- Tend towards small steps, not sweeping changes.
+- Run things by the user if they didn't explicitly request what you are doing.
+- When available, use tests, linting, and type checking to validate your code.
+- Do not impose your own standards on the project, follow the user's lead.

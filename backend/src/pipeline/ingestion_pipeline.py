@@ -13,10 +13,8 @@ async def main():
     files = crawl_journal_entries(settings.file_storage.journal_storage_path)
     tags = extract_tags(settings.file_storage.journal_storage_path)
 
-    transcriptions = transcribe_docs(files.to_transcribe, tags)
-    embeddings = embed_docs(files.to_embed)
-
-    pass
+    transcriptions = await transcribe_docs(files.to_transcribe, tags)
+    embeddings = await embed_docs(files.to_embed)
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -23,7 +23,7 @@ def crawl_journal_entries(root_dir:str="Daily Pages") -> UnprocessedDocs:
 
     def is_journal_entry(filename):
         """ Checks if the file is a journal entry, which are either PDF or image files. """
-        valid_extensions = {'.pdf', '.png', 'jpg', '.jpeg'}
+        valid_extensions = {'.pdf', '.png', '.jpg', '.jpeg'}
         return any(filename.lower().endswith(ext) for ext in valid_extensions)
 
     def get_markdown_path(entry_path):

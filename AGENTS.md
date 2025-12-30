@@ -3,7 +3,7 @@
 ## Build/Lint/Test Commands
 - **Python tests**: `uv run pytest` (all tests) or `uv run pytest tests/test_completions.py::test_encode_entry` (single test)
 - **Python env**: Use `uv` for dependency management (Python 3.13+)
-- **Backend server**: `uv run uvicorn backend.api:app --reload` (port 8000)
+- **Backend server**: `cd backend && uv run uvicorn backend.api:app --reload` (port 8000)
 - **Frontend dev**: `cd ui && npm run dev` (Vite, port 5173)
 - **Frontend lint**: `cd ui && npm run lint`
 - **Frontend build**: `cd ui && npm run build` (TypeScript check + Vite build)

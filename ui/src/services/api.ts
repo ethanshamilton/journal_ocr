@@ -66,6 +66,10 @@ export interface ChatResponse {
   thread_id?: string
 }
 
+export interface StatusResponse {
+  status: string
+}
+
 export const apiService = {
   async getSimilarEntries(request: QueryRequest): Promise<SimilarEntriesResponse> {
     const response = await api.post<SimilarEntriesResponse>('/similar_entries', {
@@ -122,6 +126,11 @@ export const apiService = {
       role,
       content
     })
+    return response.data
+  },
+
+  async checkStatus(): Promise<StatusResponse> {
+    const response = await api.get<StatusResponse>('/status')
     return response.data
   },
 }

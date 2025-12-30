@@ -10,8 +10,11 @@ from core.lancedb_client import AsyncLocalLanceDB
 from core.models import (
     ChatRequest, ChatResponse,
     CreateThreadRequest, CreateThreadResponse, Thread,
-    Message, AddMessageRequest, UpdateThreadRequest
+    Message, AddMessageRequest, UpdateThreadRequest,
+    StatusResponse
 )
+
+app_status = {"status": "starting"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,6 +23,7 @@ async def lifespan(app: FastAPI):
     await db.connect()
     await db.startup_ingest()
     app.state.db = db
+    app_status["status"] = "ready"
 
     yield
 
@@ -39,6 +43,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+### status endpoint
+
+@app.get("/status")
+async def get_status() -> StatusResponse:
+    return StatusResponse(status=app_status["status"])
 
 ### completion endpoints
 

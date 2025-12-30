@@ -7,6 +7,8 @@ import yaml
 import shutil
 import logging
 from pathlib import Path
+from typing import Literal
+from collections import Counter
 
 from core.models import UnprocessedDocs
 
@@ -100,16 +102,27 @@ def duplicate_folder(source_folder:str, target_folder:str) -> None:
     # copy source folder to target location
     shutil.copytree(source_folder, target_folder)
 
-def extract_tags(root_dir: str) -> str:
-    """ Extracts all tags from an Obsidian vault. """
+def extract_tags(
+    root_dir: str,
+    output_format: Literal["string", "frequency"] = "string"
+) -> str | dict[str, int]:
+    """ Extracts all tags from an Obsidian vault.
+
+    Args:
+        root_dir: Path to the vault directory
+        output_format: "string" returns space-separated unique tags (default),
+                      "frequency" returns dict with tag counts
+    """
     vault_path = Path(root_dir)
     tag_pattern = re.compile(r"#([\w/-]+)")
 
-    tags = set()
+    tag_counter: Counter[str] = Counter()
     for file in vault_path.rglob("*.md"):
         with open(file, "r", encoding="utf-8") as f:
             content = f.read()
-            tags.update(tag_pattern.findall(content))
+            tag_counter.update(tag_pattern.findall(content))
 
-    all_tags = sorted(tags)
-    return " ".join(all_tags)
+    if output_format == "frequency":
+        return dict(tag_counter.most_common())
+
+    return " ".join(sorted(tag_counter.keys()))

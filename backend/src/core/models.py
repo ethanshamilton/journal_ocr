@@ -84,3 +84,8 @@ class UpdateThreadRequest(BaseModel):
 class UnprocessedDocs(BaseModel):
     to_transcribe: list[tuple[str, str]]
     to_embed: list[str]
+
+### app status
+
+class StatusResponse(BaseModel):
+    status: str

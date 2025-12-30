@@ -13,8 +13,8 @@ Requires Python 3.13+. Uses [uv](https://docs.astral.sh/uv/) for dependency mana
 # Install dependencies
 uv sync
 
-# Run the API server (port 8000)
-uv run uvicorn src.api:app --reload
+# Run the API server (port 8000) - from backend/ directory
+cd backend && uv run uvicorn backend.api:app --reload
 ```
 
 ### Frontend (React/Vite)
@@ -43,7 +43,7 @@ If you're working in a git worktree, dependencies won't be shared with the main 
 
 1. `./launch.sh` - runs transcription and embedding pipelines, starts docker network, and loads data.
 2. `cd ui && npm run dev` - starts frontend.
-3. `uv run uvicorn src.api:app --reload` - starts backend API. 
+3. `cd backend && uv run uvicorn backend.api:app --reload` - starts backend API. 
 
 ## Current Capabilities
 - Checks configured data folder for the journal and makes sure everything is transcribed and embedded, then loads it to elasticsearch. 

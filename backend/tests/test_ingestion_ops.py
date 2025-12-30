@@ -19,15 +19,16 @@ def test_files():
     return files, tags
 
 @pytest.mark.asyncio
-async def test_transcribe_docs(test_files):
-    """Test transcribe_docs on a limited set of test documents."""
+async def test_ingestion_pipeline(test_files):
     files, tags = test_files
     to_transcribe = files.to_transcribe[:TEST_DOC_LIMIT]
+    to_embed = files.to_embed[:TEST_DOC_LIMIT]
+    embeddings_path = settings.test_settings.test_embedding_storage_path
 
-    if not to_transcribe:
-        pytest.skip("No documents to transcribe in test directory")
+    if os.path.exists(embeddings_path):
+        os.remove(embeddings_path)
 
-    # Run transcription
+    # run transcription before embedding
     await transcribe_docs(to_transcribe, tags)
 
     # Verify transcriptions were added to markdown files
@@ -37,22 +38,7 @@ async def test_transcribe_docs(test_files):
             content = f.read()
         assert "### Transcription" in content, f"Transcription section should be added to {md_path}"
 
-
-@pytest.mark.asyncio
-async def test_embed_docs(test_files):
-    """Test embed_docs on a limited set of test documents."""
-    files, tags = test_files
-    to_embed = files.to_embed[:TEST_DOC_LIMIT]
-    embeddings_path = settings.test_settings.test_embedding_storage_path
-
-    if not to_embed:
-        pytest.skip("No documents to embed in test directory")
-
-    # Clear test embeddings file if it exists
-    if os.path.exists(embeddings_path):
-        os.remove(embeddings_path)
-
-    # Run embedding
+    # run embedding after transcriptions are available
     await embed_docs(to_embed, embeddings_path)
 
     # Verify embeddings file was created

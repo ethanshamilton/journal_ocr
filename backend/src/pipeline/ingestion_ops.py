@@ -63,8 +63,8 @@ async def transcribe_single_doc(
     tags: str
 ) -> None:
     logger.debug(f"transcribing {file}")
-    start = time.perf_counter()
     async with semaphore:
+        start = time.perf_counter()
         images = encode_entry(file[0])
         transcription = await transcribe_images(images, tags)
         insert_transcription(file[1], transcription)
@@ -79,7 +79,6 @@ async def embed_single_doc(
 ) -> None:
 
     logger.debug(f"embedding {file}")
-    start = time.perf_counter()
 
     def append_embedding(embeddings_path: str, file_path: str, embedding: list[float]) -> None:
         entry = {"path": file_path, "embedding": embedding}
@@ -87,6 +86,7 @@ async def embed_single_doc(
             f.write(json.dumps(entry) + "\n")
 
     async with semaphore:
+        start = time.perf_counter()
         with open(file, 'r', encoding='utf-8') as f:
             content = f.read()
         transcription = extract_transcription(content)

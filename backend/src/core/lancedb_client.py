@@ -90,7 +90,8 @@ class AsyncLocalLanceDB:
 
     async def get_similar_entries(self, _embedding: list[float], n: int = 5) -> list[tuple[Entry, float]]:
         table = await self.db.open_table("journal")
-        entries_df = await table.search(_embedding).limit(n).to_polars()
+        search_result = await table.search(_embedding)
+        entries_df = await search_result.limit(n).to_polars()
         entries_df = entries_df.sort("_distance", descending=False)
         entries = self.df_to_entries(entries_df)
         distances = entries_df["_distance"].to_list()

@@ -17,11 +17,15 @@ cleanup() {
 
     if [ -n "$FRONTEND_PID" ]; then
         kill $FRONTEND_PID 2>/dev/null || true
+        wait $FRONTEND_PID 2>/dev/null || true
         echo "Frontend stopped"
     fi
 
     if [ -n "$BACKEND_PID" ]; then
+        # Kill child processes first (uvicorn's server process), then the reloader
+        pkill -P $BACKEND_PID 2>/dev/null || true
         kill $BACKEND_PID 2>/dev/null || true
+        wait $BACKEND_PID 2>/dev/null || true
         echo "Backend stopped"
     fi
 
@@ -62,6 +66,17 @@ BACKEND_PID=$!
 cd "$SCRIPT_DIR"
 
 echo "Backend started (PID: $BACKEND_PID)"
+
+# Wait for backend to be ready
+echo "Waiting for backend to initialize..."
+while true; do
+    STATUS=$(curl -s http://127.0.0.1:8000/status 2>/dev/null | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+    if [ "$STATUS" = "ready" ]; then
+        break
+    fi
+    sleep 0.5
+done
+
 echo ""
 echo "App ready at http://localhost:5173"
 echo "Press Ctrl+C to stop"

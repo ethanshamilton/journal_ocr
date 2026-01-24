@@ -7,6 +7,7 @@ from google import genai
 
 from core.settings import settings
 
+
 google_client = genai.Client(api_key=settings.credentials.GOOGLE_API_KEY)
 
 

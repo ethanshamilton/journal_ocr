@@ -93,12 +93,28 @@ async def _load_chat_history(lance: AsyncLocalLanceDB, request: ChatRequest) -> 
 MAX_AGENT_ITERATIONS = 5
 
 
+RECENT_PRESEED_COUNT = 4
+
+
 async def agentic_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatResponse:
     """
     Agentic search loop that iteratively selects and executes search tools
     to gather comprehensive context before generating a response.
     """
     state = AgentSearchState()
+
+    # always pre-seed with recent entries for temporal context
+    recent_entries = await lance.get_recent_entries(RECENT_PRESEED_COUNT)
+    new_count = state.add_entries(recent_entries)
+    state.record_iteration(
+        iteration=0,
+        tool="RECENT_ENTRIES_PRESEED",
+        reasoning="Always include recent entries for temporal context",
+        query=None,
+        results_count=len(recent_entries),
+        new_entries=new_count
+    )
+    logger.info(f"Pre-seeded with {new_count} recent entries")
 
     # agent loop - iteratively select and execute tools
     for iteration in range(1, MAX_AGENT_ITERATIONS + 1):

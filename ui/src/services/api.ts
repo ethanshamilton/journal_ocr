@@ -85,7 +85,7 @@ export const apiService = {
   },
 
   async queryJournal(request: ChatRequest): Promise<ChatResponse> {
-    const response = await api.post<ChatResponse>('/journal_chat', request)
+    const response = await api.post<ChatResponse>('/journal_chat_agent', request)
     return response.data
   },
 

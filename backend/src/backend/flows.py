@@ -122,6 +122,7 @@ async def agentic_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatRe
             tool_call = await agent_tool_selector(
                 user_query=req.query,
                 accumulated_context=state.get_context_string(),
+                search_trace=state.get_trace_string(),
                 iteration=iteration,
                 max_iterations=MAX_AGENT_ITERATIONS
             )

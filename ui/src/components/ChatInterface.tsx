@@ -24,6 +24,13 @@ const providers = [
       { label: "GPT-5", value: "gpt-5" }
     ],
   },
+  {
+    label: "Google",
+    value: "google-ai",
+    models: [
+      { label: "Gemini 3 Pro", value: "gemini-3-pro-preview" }
+    ],
+  },
 ]
 
 interface Message {

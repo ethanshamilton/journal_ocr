@@ -38,11 +38,12 @@ async def chat_response(request: ChatRequest, chat_history: list, entries_str: s
 async def agent_tool_selector(
     user_query: str,
     accumulated_context: str,
+    search_trace: str,
     iteration: int,
     max_iterations: int
 ) -> SearchToolCall:
     """Select the next search tool to use in the agent loop."""
-    return await b.AgentToolSelector(user_query, accumulated_context, iteration, max_iterations)
+    return await b.AgentToolSelector(user_query, accumulated_context, search_trace, iteration, max_iterations)
 
 
 async def agent_synthesizer(

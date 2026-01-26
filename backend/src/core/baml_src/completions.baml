@@ -62,6 +62,7 @@ class SearchToolCall {
 function AgentToolSelector(
   user_query: string,
   accumulated_context: string,
+  search_trace: string,
   iteration: int,
   max_iterations: int
 ) -> SearchToolCall {
@@ -80,12 +81,16 @@ function AgentToolSelector(
     - What information is still missing to fully answer the query?
     - Have we already gathered enough context?
     - Would a different search strategy find new relevant entries?
-    - Avoid redundant searches that would return the same entries.
+    - IMPORTANT: Check the search trace to see what searches have already been performed. Do not repeat searches.
     </INSTRUCTIONS>
 
     <USER_QUERY>
     {{user_query}}
     </USER_QUERY>
+
+    <SEARCH_TRACE>
+    {{search_trace}}
+    </SEARCH_TRACE>
 
     <ACCUMULATED_CONTEXT>
     {{accumulated_context}}

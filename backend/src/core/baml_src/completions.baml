@@ -46,7 +46,7 @@ function DirectChat(messages: string, entries: string) -> string {
 enum SearchToolType {
   VECTOR_SEARCH
   RECENT_ENTRIES
-  DATE_RANGE_SEARCH
+  // DATE_RANGE_SEARCH
   DONE
 }
 

@@ -74,7 +74,6 @@ function AgentToolSelector(
     Available tools:
     - VECTOR_SEARCH: Semantic search using embeddings. Best for finding entries about specific topics, emotions, or concepts. Requires a search query.
     - RECENT_ENTRIES: Get the most recent journal entries. Best for questions about "lately", "recently", or current state.
-    - DATE_RANGE_SEARCH: Search entries within a date range. Best for questions about specific time periods (e.g., "last month", "in 2023"). Requires start_date and end_date in YYYY-MM-DD format.
     - DONE: Select this when you have gathered enough context to answer the user's query, or if no more searches would be helpful.
 
     Consider:

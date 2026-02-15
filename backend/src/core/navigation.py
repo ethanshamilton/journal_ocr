@@ -5,6 +5,7 @@ import os
 import re
 import yaml
 import shutil
+import hashlib
 import logging
 from pathlib import Path
 from typing import Literal
@@ -101,6 +102,66 @@ def duplicate_folder(source_folder:str, target_folder:str) -> None:
 
     # copy source folder to target location
     shutil.copytree(source_folder, target_folder)
+
+def _parse_frontmatter(content: str) -> dict:
+    """Parse YAML frontmatter from markdown content. Returns empty dict if none."""
+    lines = content.split("\n")
+    if not lines or lines[0].strip() != "---":
+        return {}
+    yaml_lines = []
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        yaml_lines.append(line)
+    try:
+        return yaml.safe_load("\n".join(yaml_lines)) or {}
+    except yaml.YAMLError:
+        return {}
+
+def strip_frontmatter(content: str) -> str:
+    """Return markdown body with YAML frontmatter stripped."""
+    if not content.startswith("---"):
+        return content
+    end = content.find("---", 3)
+    if end == -1:
+        return content
+    return content[end + 3:].lstrip("\n")
+
+def compute_content_hash(body: str) -> str:
+    """SHA-256 hash of content body (frontmatter excluded)."""
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+def crawl_evergreen_entries(root_dir: str) -> list[str]:
+    """Find evergreen .md files that need (re-)embedding based on content hash."""
+    to_embed = []
+
+    if not os.path.exists(root_dir):
+        logging.info(f"Evergreen directory not found: {root_dir}")
+        return to_embed
+
+    for dirpath, _, filenames in os.walk(root_dir):
+        for filename in filenames:
+            if not filename.endswith(".md"):
+                continue
+            full_path = os.path.join(dirpath, filename)
+
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            body = strip_frontmatter(content)
+            if not body.strip():
+                logging.info(f"Skipping empty evergreen file: {full_path}")
+                continue
+
+            new_hash = compute_content_hash(body)
+            frontmatter = _parse_frontmatter(content)
+
+            if frontmatter.get("content_hash") != new_hash:
+                to_embed.append(full_path)
+                logging.info(f"Evergreen file needs embedding: {full_path}")
+
+    logging.info(f"Found {len(to_embed)} evergreen entries to embed.")
+    return to_embed
 
 def extract_tags(
     root_dir: str,

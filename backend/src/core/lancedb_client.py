@@ -8,7 +8,7 @@ import lancedb
 import polars as pl
 import pyarrow as pa
 
-from core.ingest import load_chats_to_dfs, load_notes_to_df
+from core.ingest import load_chats_to_dfs, load_notes_to_df, load_evergreen_to_df
 from core.models import Entry
 from core.settings import settings
 
@@ -29,6 +29,7 @@ class AsyncLocalLanceDB:
         chats = settings.file_storage.chat_storage_path
         embeddings = settings.file_storage.embedding_storage_path
         journal = settings.file_storage.journal_storage_path
+        evergreen = settings.file_storage.evergreen_storage_path
 
         if not (chats and embeddings and journal):
             raise FileNotFoundError("ensure chats, embeddings, and journal data are available")
@@ -36,6 +37,12 @@ class AsyncLocalLanceDB:
         # load to dataframes
         threads_df, messages_df = load_chats_to_dfs(chats)
         journal_df = load_notes_to_df(embeddings, journal)
+
+        # load evergreen entries and concatenate
+        evergreen_df = load_evergreen_to_df(embeddings, evergreen)
+        if len(evergreen_df) > 0:
+            journal_df = pl.concat([journal_df, evergreen_df])
+            logging.info(f"[lancedb] added {len(evergreen_df)} evergreen entries")
 
         # journal: always overwrite (source of truth is markdown files)
         await self.db.create_table("journal", data=journal_df, mode="overwrite")
@@ -109,7 +116,8 @@ class AsyncLocalLanceDB:
                 title=row["title"],
                 text=row["text"],
                 tags=row["tags"],
-                embedding=row["embedding"]
+                embedding=row["embedding"],
+                entry_type=row.get("entry_type", "daily"),
             ) for row in df.iter_rows(named=True)
         ]
 

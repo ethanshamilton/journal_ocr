@@ -18,6 +18,7 @@ class Entry(BaseModel):
     text: str
     tags: list[str]
     embedding: list[float] | None
+    entry_type: str = "daily"
 
 ### API interfaces
 
@@ -144,6 +145,7 @@ class AgentSearchState:
         lines = []
         for i, entry in enumerate(self.accumulated_entries.values(), 1):
             lines.append(f"Entry {i}:")
+            lines.append(f"  type: {entry.entry_type}")
             lines.append(f"  date: {entry.date}")
             lines.append(f"  title: {entry.title}")
             lines.append(f"  text: {entry.text}")

@@ -10,6 +10,8 @@ from datetime import datetime
 import polars as pl
 from dotenv import load_dotenv
 
+from core.navigation import strip_frontmatter
+
 load_dotenv()
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(filename="logs/loader.log")
@@ -92,7 +94,8 @@ def load_notes_to_df(embeddings_path: str, notes_dir: str):
                 "title": date_part,
                 "text": transcription,
                 "tags": tags,
-                "embedding": embeddings_map[date_part]
+                "embedding": embeddings_map[date_part],
+                "entry_type": "daily",
             }
             rows.append(row)
 
@@ -100,3 +103,52 @@ def load_notes_to_df(embeddings_path: str, notes_dir: str):
     df = pl.DataFrame(rows)
     logging.info(f"Number of missing embeddings: {missing_embeddings}")
     return df
+
+EMPTY_EVERGREEN_SCHEMA = {
+    "date": pl.Utf8, "title": pl.Utf8, "text": pl.Utf8,
+    "tags": pl.List(pl.Utf8), "embedding": pl.List(pl.Float64),
+    "entry_type": pl.Utf8,
+}
+
+def load_evergreen_to_df(embeddings_path: str, evergreen_dir: str) -> pl.DataFrame:
+    """Load evergreen markdown entries and their embeddings into a Polars DataFrame."""
+    if not os.path.exists(evergreen_dir):
+        return pl.DataFrame(schema=EMPTY_EVERGREEN_SCHEMA)
+
+    # load embeddings keyed by full path (evergreen filenames aren't dates)
+    embeddings_map = {}
+    if os.path.exists(embeddings_path):
+        try:
+            with open(embeddings_path, 'r') as f:
+                for line in f:
+                    if line.strip():
+                        entry = json.loads(line)
+                        embeddings_map[entry["path"]] = entry["embedding"]
+        except Exception as e:
+            logging.error(f"Failed to load embeddings: {e}")
+
+    rows = []
+    for path in glob.glob(f"{evergreen_dir}/**/*.md", recursive=True):
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        body = strip_frontmatter(content)
+        if not body.strip():
+            continue
+
+        if path not in embeddings_map:
+            continue
+
+        rows.append({
+            "date": datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%d"),
+            "title": os.path.basename(path).replace(".md", ""),
+            "text": body,
+            "tags": extract_tags(content),
+            "embedding": embeddings_map[path],
+            "entry_type": "evergreen",
+        })
+
+    if not rows:
+        return pl.DataFrame(schema=EMPTY_EVERGREEN_SCHEMA)
+
+    return pl.DataFrame(rows)

@@ -13,6 +13,7 @@ class FileStorageSettings(BaseModel):
     chat_storage_path: str = "/Users/hamiltones/code/journal_ocr_ext/journal_ocr/data/chats.json"
     embedding_storage_path: str = "/Users/hamiltones/OneDrive/Journal/embeddings.jsonl"
     journal_storage_path: str = "/Users/hamiltones/OneDrive/Journal/Daily Pages"
+    evergreen_storage_path: str = "/Users/hamiltones/OneDrive/Journal/Evergreen"
 
 class ModelSettings(BaseModel):
     embedding_model: str = "gemini-embedding-001" # Google models only

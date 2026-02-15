@@ -1,15 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './LoadingScreen.css'
 
 // Character set: alphanumeric
 const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-
-// Tags loaded at runtime from /tags.json
-const TAG_FREQUENCIES: Record<string, number> = {}
-
-const TAGS = Object.keys(TAG_FREQUENCIES)
-const MAX_FREQUENCY = Math.max(...Object.values(TAG_FREQUENCIES))
-const MIN_FREQUENCY = Math.min(...Object.values(TAG_FREQUENCIES))
 
 interface Stream {
   y: number
@@ -25,6 +18,20 @@ interface Stream {
 
 const LoadingScreen: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [tagData, setTagData] = useState<Record<string, number> | null>(null)
+
+  // Fetch tags from static file on mount
+  useEffect(() => {
+    fetch('/tags.json')
+      .then((res) => {
+        if (!res.ok) throw new Error('Not found')
+        return res.json()
+      })
+      .then((data) => setTagData(data))
+      .catch(() => {
+        // No tags file — fallback to random characters handled in animation
+      })
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -32,6 +39,11 @@ const LoadingScreen: React.FC = () => {
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+
+    // Derive tag constants from fetched data (if available)
+    const TAGS = tagData ? Object.keys(tagData) : null
+    const MAX_FREQUENCY = tagData ? Math.max(...Object.values(tagData)) : 1
+    const MIN_FREQUENCY = tagData ? Math.min(...Object.values(tagData)) : 1
 
     // Set canvas to full viewport
     const resize = () => {
@@ -52,8 +64,19 @@ const LoadingScreen: React.FC = () => {
       return Math.round(minFontSize + ratio * (maxFontSize - minFontSize))
     }
 
-    // Helper to get random tag
-    const randomTag = () => TAGS[Math.floor(Math.random() * TAGS.length)]
+    // Helper to get random tag or random character string
+    const randomTag = () => {
+      if (TAGS) {
+        return TAGS[Math.floor(Math.random() * TAGS.length)]
+      }
+      // Fallback: random 3-10 character string
+      const len = Math.floor(Math.random() * 8) + 3
+      let result = ''
+      for (let i = 0; i < len; i++) {
+        result += CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)]
+      }
+      return result
+    }
 
     // Helper to generate tail characters
     const generateTail = (len: number) => {
@@ -66,12 +89,16 @@ const LoadingScreen: React.FC = () => {
 
     // Map tag frequency to speed (higher frequency = faster/bigger)
     const frequencyToSpeed = (tag: string) => {
-      const freq = TAG_FREQUENCIES[tag] || 1
-      // Use log scale to compress the range (181 vs 1 is too extreme)
+      if (!tagData) {
+        // No tag data — return random speed
+        return minSpeed + Math.random() * (maxSpeed - minSpeed)
+      }
+      const freq = tagData[tag] || 1
+      // Use log scale to compress the range
       const logFreq = Math.log(freq)
       const logMax = Math.log(MAX_FREQUENCY)
       const logMin = Math.log(MIN_FREQUENCY)
-      const ratio = (logFreq - logMin) / (logMax - logMin)
+      const ratio = logMax !== logMin ? (logFreq - logMin) / (logMax - logMin) : 0.5
       return minSpeed + ratio * (maxSpeed - minSpeed)
     }
 
@@ -185,7 +212,7 @@ const LoadingScreen: React.FC = () => {
       window.removeEventListener('resize', resize)
       cancelAnimationFrame(animationId)
     }
-  }, [])
+  }, [tagData])
 
   return (
     <div className="loading-screen">

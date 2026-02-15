@@ -19,6 +19,8 @@ x.log
 
 # Sensitive files
 .env
+backend/tags_export.json
+ui/public/tags.json
 
 # Mac
 .DS_Store/

@@ -12,6 +12,7 @@ wheels/
 *.egg-info
 .pytest_cache
 x.log
+.complexipy_cache
 
 # Virtual environments
 .v

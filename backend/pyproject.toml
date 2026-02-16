@@ -34,6 +34,7 @@ include = ["backend*", "core*", "pipeline*"]
 
 [dependency-groups]
 dev = [
+    "complexipy>=5.2.0",
     "py-spy>=0.4.1",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",

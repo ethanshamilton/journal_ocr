@@ -92,7 +92,12 @@ class AsyncLocalLanceDB:
     async def get_recent_entries(self, n: int = 7) -> list[Entry]:
         table = await self.db.open_table("journal")
         arrow_table = await table.to_arrow()
-        entries_df = pl.from_arrow(arrow_table).sort("date", descending=True).head(n)
+        entries_df = (
+            pl.from_arrow(arrow_table)
+            .filter(pl.col("entry_type") != "evergreen")
+            .sort("date", descending=True)
+            .head(n)
+        )
         return self.df_to_entries(entries_df)
 
     async def get_similar_entries(self, _embedding: list[float], n: int = 5) -> list[tuple[Entry, float]]:

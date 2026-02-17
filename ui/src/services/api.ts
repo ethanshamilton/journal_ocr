@@ -143,6 +143,7 @@ export const apiService = {
     const decoder = new TextDecoder()
     let buffer = ''
     let currentEvent = ''
+    let responseReceived = false
 
     while (true) {
       const { done, value } = await reader.read()
@@ -159,10 +160,17 @@ export const apiService = {
           if (currentEvent === 'search_iteration') {
             onIteration(data as SearchIteration)
           } else if (currentEvent === 'chat_response') {
+            responseReceived = true
             onComplete(data as ChatResponse)
+          } else if (currentEvent === 'error') {
+            throw new Error((data as { error: string }).error || 'Stream error occurred')
           }
         }
       }
+    }
+
+    if (!responseReceived) {
+      throw new Error('Stream ended without receiving a response')
     }
   },
 

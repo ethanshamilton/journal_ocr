@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import json
+import logging
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +8,8 @@ from fastapi.responses import StreamingResponse
 
 from backend.flows import default_llm_flow, agentic_llm_flow_stream
 from core.lancedb_client import AsyncLocalLanceDB
+logger = logging.getLogger(__name__)
+
 from core.models import (
     ChatRequest, ChatResponse,
     CreateThreadRequest, CreateThreadResponse, Thread,
@@ -67,10 +70,15 @@ async def journal_chat_agent_stream(
 ):
     """Streaming agentic chat endpoint that sends SSE events for each search iteration."""
     async def event_generator():
-        async for event in agentic_llm_flow_stream(db, request):
-            event_type = event["event"]
-            data = json.dumps(event["data"])
-            yield f"event: {event_type}\ndata: {data}\n\n"
+        try:
+            async for event in agentic_llm_flow_stream(db, request):
+                event_type = event["event"]
+                data = json.dumps(event["data"])
+                yield f"event: {event_type}\ndata: {data}\n\n"
+        except Exception as e:
+            logger.error(f"Stream error: {e}")
+            error_data = json.dumps({"error": str(e)})
+            yield f"event: error\ndata: {error_data}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

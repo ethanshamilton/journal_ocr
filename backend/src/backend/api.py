@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from backend.flows import default_llm_flow, agentic_llm_flow, agentic_llm_flow_stream
+from backend.flows import default_llm_flow, agentic_llm_flow_stream
 from core.lancedb_client import AsyncLocalLanceDB
 from core.models import (
     ChatRequest, ChatResponse,
@@ -59,14 +59,6 @@ async def journal_chat(
 ) -> ChatResponse:
     return await default_llm_flow(db, request)
 
-
-@app.post("/journal_chat_agent")
-async def journal_chat_agent(
-    request: ChatRequest,
-    db: AsyncLocalLanceDB = Depends(get_db)
-) -> ChatResponse:
-    """Agentic chat endpoint that iteratively searches for relevant context."""
-    return await agentic_llm_flow(db, request)
 
 @app.post("/journal_chat_agent/stream")
 async def journal_chat_agent_stream(

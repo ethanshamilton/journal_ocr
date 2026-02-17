@@ -136,65 +136,42 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     try {
       let similarDocs: CustomDocument[] = []
       let responseText = ""
-      
-      // only do retrieval if this is the first message or we don't have docs yet
-      if (retrievedDocs.length === 0) {
-        // query journal with streaming to show search iterations
-        setSearchIterations([])
-        await apiService.queryJournalStream(
-          {
-            query,
-            top_k: 5,
-            provider: selectedModel.provider,
-            model: selectedModel.model,
-            thread_id: currentThreadId || "",
-            message_history: isThreadSaved ? undefined : messages
-          },
-          (iteration) => {
-            setSearchIterations(prev => [...prev, iteration])
-          },
-          (combinedResponse) => {
-            similarDocs = combinedResponse.docs.map((doc, i) => ({
-              id: i + 1,
-              title: doc.entry.title || `Similar Entry ${i + 1}`,
-              content: doc.entry.text || JSON.stringify(doc.entry)
-            }))
 
-            setRetrievedDocs(similarDocs)
-            setDocuments(similarDocs)
-            responseText = combinedResponse.response
+      // always use streaming agentic flow with fresh retrieval
+      setSearchIterations([])
+      await apiService.queryJournalStream(
+        {
+          query,
+          top_k: 5,
+          provider: selectedModel.provider,
+          model: selectedModel.model,
+          thread_id: currentThreadId || "",
+          message_history: isThreadSaved ? undefined : messages
+        },
+        (iteration) => {
+          setSearchIterations(prev => [...prev, iteration])
+        },
+        (combinedResponse) => {
+          similarDocs = combinedResponse.docs.map((doc, i) => ({
+            id: i + 1,
+            title: doc.entry.title || `Similar Entry ${i + 1}`,
+            content: doc.entry.text || JSON.stringify(doc.entry)
+          }))
 
-            const botMessage: Message = {
-              id: Date.now() + 1,
-              text: combinedResponse.response,
-              sender: 'assistant',
-              timestamp: new Date()
-            }
-            setMessages(prev => [...prev, botMessage])
-            setSearchIterations([])
+          setRetrievedDocs(similarDocs)
+          setDocuments(similarDocs)
+          responseText = combinedResponse.response
+
+          const botMessage: Message = {
+            id: Date.now() + 1,
+            text: combinedResponse.response,
+            sender: 'assistant',
+            timestamp: new Date()
           }
-        )
-      } else {
-        // use existing docs, just query with context
-        const response = await apiService.queryJournal({
-            query,
-            top_k: 0, // no retrieval needed
-            provider: selectedModel.provider,
-            model: selectedModel.model,
-            thread_id: currentThreadId || "",
-            message_history: isThreadSaved ? undefined : messages,
-            existing_docs: retrievedDocs as any // pass existing docs
-          })
-        
-        responseText = response.response
-        const botMessage: Message = {
-          id: Date.now() + 1,
-          text: response.response,
-          sender: 'assistant',
-          timestamp: new Date()
+          setMessages(prev => [...prev, botMessage])
+          setSearchIterations([])
         }
-        setMessages(prev => [...prev, botMessage])
-      }
+      )
 
       // save messages to thread if we have one and it's saved
       if (currentThreadId && isThreadSaved) {

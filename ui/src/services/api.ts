@@ -84,11 +84,6 @@ export const apiService = {
     return response.data
   },
 
-  async queryJournal(request: ChatRequest): Promise<ChatResponse> {
-    const response = await api.post<ChatResponse>('/journal_chat_agent', request)
-    return response.data
-  },
-
   // Thread management methods
   async createThread(title?: string, initialMessage?: string): Promise<{ thread_id: string; created_at: string }> {
     const response = await api.post('/threads', {

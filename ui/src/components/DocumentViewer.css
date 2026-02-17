@@ -26,22 +26,23 @@
 
 .document-item {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: none;
+  border-left: 2px solid #666;
   border-radius: 4px;
   cursor: pointer;
-  background-color: #3b3b3b;
+  background-color: #2a2a2a;
   transition: all 0.2s ease;
 }
 
 .document-item:hover {
-  background-color: #ff8800;
-  border-color: white;
+  background-color: #333;
+  border-left-color: #ae5d00;
 }
 
 .document-item.selected {
-  background-color: #ae5d00;
+  background-color: #2a2a2a;
   color: white;
-  border-color: white;
+  border-left: 3px solid #ae5d00;
 }
 
 .document-item h4 {

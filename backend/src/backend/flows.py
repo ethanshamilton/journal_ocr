@@ -185,6 +185,132 @@ async def agentic_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatRe
     return ChatResponse(response=llm_response, docs=response_docs, thread_id=req.thread_id)
 
 
+async def agentic_llm_flow_stream(lance: AsyncLocalLanceDB, req: ChatRequest) -> AsyncGenerator[dict, None]:
+    """
+    Streaming version of agentic_llm_flow that yields SSE events
+    for each search iteration and the final response.
+    """
+    state = AgentSearchState()
+
+    # always pre-seed with recent entries for temporal context
+    recent_entries = await lance.get_recent_entries(RECENT_PRESEED_COUNT)
+    new_count = state.add_entries(recent_entries)
+    state.record_iteration(
+        iteration=0,
+        tool="RECENT_ENTRIES_PRESEED",
+        reasoning="Always include recent entries for temporal context",
+        query=None,
+        results_count=len(recent_entries),
+        new_entries=new_count
+    )
+    logger.info(f"Pre-seeded with {new_count} recent entries")
+
+    yield {
+        "event": "search_iteration",
+        "data": {
+            "iteration": 0,
+            "tool": "RECENT_ENTRIES_PRESEED",
+            "reasoning": "Always include recent entries for temporal context",
+            "query": None,
+            "results_count": len(recent_entries),
+            "new_entries_added": new_count,
+        }
+    }
+
+    # agent loop - iteratively select and execute tools
+    for iteration in range(1, MAX_AGENT_ITERATIONS + 1):
+        try:
+            tool_call = await agent_tool_selector(
+                user_query=req.query,
+                accumulated_context=state.get_context_string(),
+                search_trace=state.get_trace_string(),
+                iteration=iteration,
+                max_iterations=MAX_AGENT_ITERATIONS
+            )
+            logger.info(f"Agent iteration {iteration}: {tool_call.tool} - {tool_call.reasoning[:80]}...")
+
+            if tool_call.tool == SearchToolType.DONE:
+                state.record_iteration(
+                    iteration=iteration,
+                    tool="DONE",
+                    reasoning=tool_call.reasoning,
+                    query=None,
+                    results_count=0,
+                    new_entries=0
+                )
+                yield {
+                    "event": "search_iteration",
+                    "data": {
+                        "iteration": iteration,
+                        "tool": "DONE",
+                        "reasoning": tool_call.reasoning,
+                        "query": None,
+                        "results_count": 0,
+                        "new_entries_added": 0,
+                    }
+                }
+                break
+
+            # execute the selected tool
+            entries = await _execute_agent_tool(lance, tool_call)
+            new_count = state.add_entries(entries)
+
+            state.record_iteration(
+                iteration=iteration,
+                tool=tool_call.tool.value,
+                reasoning=tool_call.reasoning,
+                query=tool_call.query,
+                results_count=len(entries),
+                new_entries=new_count
+            )
+
+            yield {
+                "event": "search_iteration",
+                "data": {
+                    "iteration": iteration,
+                    "tool": tool_call.tool.value,
+                    "reasoning": tool_call.reasoning,
+                    "query": tool_call.query,
+                    "results_count": len(entries),
+                    "new_entries_added": new_count,
+                }
+            }
+
+            logger.info(f"Agent retrieved {len(entries)} entries, {new_count} new")
+
+        except Exception as e:
+            logger.error(f"Error in agent iteration {iteration}: {e}")
+            if not state.accumulated_entries:
+                query_embedding = await get_embedding(req.query)
+                if query_embedding:
+                    fallback_entries = await lance.get_similar_entries(query_embedding, req.top_k)
+                    for entry, _ in fallback_entries:
+                        state.add_entry(entry)
+            break
+
+    # load chat history
+    chat_history = await _load_chat_history(lance, req)
+
+    # synthesize final response
+    llm_response = await agent_synthesizer(
+        request=req,
+        chat_history=chat_history,
+        accumulated_context=state.get_context_string(),
+        search_trace=state.get_trace_string()
+    )
+
+    # build response docs for frontend
+    response_docs = []
+    for entry in state.accumulated_entries.values():
+        entry_for_response = entry.model_copy(update={"embedding": None})
+        response_docs.append(RetrievedDoc(entry=entry_for_response, distance=None))
+
+    yield {
+        "event": "chat_response",
+        "data": ChatResponse(response=llm_response, docs=response_docs, thread_id=req.thread_id).model_dump()
+    }
+
+
 async def _execute_agent_tool(lance: AsyncLocalLanceDB, tool_call) -> list[Entry]:
     """Execute the selected search tool and return entries."""
     limit = tool_call.limit or 5

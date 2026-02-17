@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from backend.flows import default_llm_flow, agentic_llm_flow
+from backend.flows import default_llm_flow, agentic_llm_flow, agentic_llm_flow_stream
 from core.lancedb_client import AsyncLocalLanceDB
 from core.models import (
     ChatRequest, ChatResponse,
@@ -67,6 +67,21 @@ async def journal_chat_agent(
 ) -> ChatResponse:
     """Agentic chat endpoint that iteratively searches for relevant context."""
     return await agentic_llm_flow(db, request)
+
+@app.post("/journal_chat_agent/stream")
+async def journal_chat_agent_stream(
+    request: ChatRequest,
+    db: AsyncLocalLanceDB = Depends(get_db)
+):
+    """Streaming agentic chat endpoint that sends SSE events for each search iteration."""
+    async def event_generator():
+        async for event in agentic_llm_flow_stream(db, request):
+            event_type = event["event"]
+            data = json.dumps(event["data"])
+            yield f"event: {event_type}\ndata: {data}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
 ### thread management
 

@@ -116,10 +116,11 @@
 }
 
 .user-message .message-content {
-  background-color: #ae5d00;
+  background-color: #2a2a2a;
   color: white;
-  padding: 0.75rem 1rem;
-  border-radius: 18px 18px 4px 18px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-left: 2px solid #ae5d00;
 }
 
 .bot-message {
@@ -127,10 +128,11 @@
 }
 
 .bot-message .message-content {
-  background-color: #3b3b3b;
+  background-color: #1a1a1a;
   color: white;
-  padding: 0.75rem 1rem;
-  border-radius: 18px 18px 18px 4px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-left: 2px solid #666;
 }
 
 .message-content {
@@ -240,5 +242,63 @@
 .send-button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
+}
+
+/* Thinking panel / search iterations */
+.thinking-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.iteration-card {
+  background-color: #2a2a2a;
+  border-left: 2px solid #ae5d00;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+.iteration-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.iteration-tool {
+  background-color: #ae5d00;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.iteration-query {
+  color: #ccc;
+  font-style: italic;
+  font-size: 0.75rem;
+}
+
+.iteration-meta {
+  color: #888;
+  font-size: 0.7rem;
+  margin-left: auto;
+}
+
+.iteration-reasoning {
+  color: #aaa;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.thinking-panel .typing-indicator {
+  margin-top: 4px;
+  justify-content: flex-start;
 }
 

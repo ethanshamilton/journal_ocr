@@ -24,10 +24,11 @@
   color: #888;
   transition: all 0.2s ease;
   border-bottom: 2px solid transparent;
+  outline: none;
 }
 
 .tab:hover {
-  background-color: #3b3b3b;
+  background-color: #2d1b4e;
   color: white;
 }
 

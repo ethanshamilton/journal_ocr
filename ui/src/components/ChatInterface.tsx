@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import './ChatInterface.css'
 import { apiService } from '../services/api'
-import type { Document as CustomDocument, ThreadMessage } from '../types'
+import type { Document as CustomDocument, ThreadMessage, SearchIteration } from '../types'
 import ReactMarkdown from 'react-markdown'
 
 const providers = [
@@ -66,6 +66,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
   const [isThreadSaved, setIsThreadSaved] = useState(false)
   const [retrievedDocs, setRetrievedDocs] = useState<CustomDocument[]>([])
+  const [searchIterations, setSearchIterations] = useState<SearchIteration[]>([])
 
   const loadThread = (threadId: string, threadMessages: ThreadMessage[]) => {
     setCurrentThreadId(threadId)
@@ -138,35 +139,41 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
       
       // only do retrieval if this is the first message or we don't have docs yet
       if (retrievedDocs.length === 0) {
-        // query journal with retrieval
-        const combinedResponse = await apiService.queryJournal({
+        // query journal with streaming to show search iterations
+        setSearchIterations([])
+        await apiService.queryJournalStream(
+          {
             query,
-            top_k: 5, 
+            top_k: 5,
             provider: selectedModel.provider,
             model: selectedModel.model,
             thread_id: currentThreadId || "",
-            message_history: isThreadSaved ? undefined : messages // only send history for temporary chats
-          })
-        
-        // Prepare similar entries to be sent to DocumentViewer
-        similarDocs = combinedResponse.docs.map((doc, i) => ({
-          id: i + 1,
-          title: doc.entry.title || `Similar Entry ${i + 1}`,
-          content: doc.entry.text || JSON.stringify(doc.entry)
-        }))
-        
-        setRetrievedDocs(similarDocs)
-        setDocuments(similarDocs)
-        responseText = combinedResponse.response
-        
-        // get the response from the combined response
-        const botMessage: Message = {
-          id: Date.now() + 1,
-          text: combinedResponse.response,
-          sender: 'assistant',
-          timestamp: new Date()
-        }
-        setMessages(prev => [...prev, botMessage])
+            message_history: isThreadSaved ? undefined : messages
+          },
+          (iteration) => {
+            setSearchIterations(prev => [...prev, iteration])
+          },
+          (combinedResponse) => {
+            similarDocs = combinedResponse.docs.map((doc, i) => ({
+              id: i + 1,
+              title: doc.entry.title || `Similar Entry ${i + 1}`,
+              content: doc.entry.text || JSON.stringify(doc.entry)
+            }))
+
+            setRetrievedDocs(similarDocs)
+            setDocuments(similarDocs)
+            responseText = combinedResponse.response
+
+            const botMessage: Message = {
+              id: Date.now() + 1,
+              text: combinedResponse.response,
+              sender: 'assistant',
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, botMessage])
+            setSearchIterations([])
+          }
+        )
       } else {
         // use existing docs, just query with context
         const response = await apiService.queryJournal({
@@ -279,11 +286,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
         {isLoading && (
           <div className="message bot-message">
             <div className="message-content loading">
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
+              {searchIterations.length > 0 ? (
+                <div className="thinking-panel">
+                  {searchIterations.map((iter, idx) => (
+                    <div key={idx} className="iteration-card">
+                      <div className="iteration-header">
+                        <span className="iteration-tool">{iter.tool}</span>
+                        {iter.query && <span className="iteration-query">"{iter.query}"</span>}
+                        <span className="iteration-meta">
+                          {iter.results_count} results, {iter.new_entries_added} new
+                        </span>
+                      </div>
+                      <div className="iteration-reasoning">{iter.reasoning}</div>
+                    </div>
+                  ))}
+                  <div className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              ) : (
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              )}
             </div>
           </div>
         )}

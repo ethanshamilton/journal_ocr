@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Thread, ThreadMessage } from '../types'
+import type { Thread, ThreadMessage, SearchIteration } from '../types'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -127,6 +127,49 @@ export const apiService = {
       content
     })
     return response.data
+  },
+
+  async queryJournalStream(
+    request: ChatRequest,
+    onIteration: (iteration: SearchIteration) => void,
+    onComplete: (response: ChatResponse) => void,
+  ): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/journal_chat_agent/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Stream request failed: ${response.status}`)
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      let currentEvent = ''
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim()
+        } else if (line.startsWith('data: ')) {
+          const data = JSON.parse(line.slice(6))
+          if (currentEvent === 'search_iteration') {
+            onIteration(data as SearchIteration)
+          } else if (currentEvent === 'chat_response') {
+            onComplete(data as ChatResponse)
+          }
+        }
+      }
+    }
   },
 
   async checkStatus(): Promise<StatusResponse> {

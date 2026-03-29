@@ -30,3 +30,10 @@
 - Run things by the user if they didn't explicitly request what you are doing.
 - When available, use tests, linting, and type checking to validate your code.
 - Do not impose your own standards on the project, follow the user's lead.
+
+## Task Management and Coordination
+- We use linear for "project management" type functionality. Effectively this means Ethan writes out the tasks that need to be done and their descriptions.
+- The linear-cli is available for use to interact with linear. Key commands:
+  - `linear issue view`: shows the issue associated with the current git branch
+  - `linear issue list`: shows all issues
+  - `linear issue list --project "journal_ocr"`: shows all issues for this project

@@ -10,20 +10,20 @@ class Credentials(BaseModel):
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 
 class FileStorageSettings(BaseModel):
-    chat_storage_path: str = "/Users/hamiltones/code/journal_ocr_ext/journal_ocr/data/chats.json"
-    embedding_storage_path: str = "/Users/hamiltones/OneDrive/Journal/embeddings.jsonl"
-    journal_storage_path: str = "/Users/hamiltones/OneDrive/Journal/Daily Pages"
-    evergreen_storage_path: str = "/Users/hamiltones/OneDrive/Journal/Evergreen"
+    chat_storage_path: str = "/home/neurostack/code/journal_ocr/data/chats.json"
+    embedding_storage_path: str = "/mnt/c/Users/Administrator/OneDrive/Journal/embeddings.jsonl"
+    journal_storage_path: str = "/mnt/c/Users/Administrator/OneDrive/Journal/Daily Pages"
+    evergreen_storage_path: str = "/mnt/c/Users/Administrator/OneDrive/Journal/Evergreen"
 
 class ModelSettings(BaseModel):
     embedding_model: str = "gemini-embedding-001" # Google models only
     transcription_model: str = "gpt-5" # OpenAI models only
 
 class TestSettings(BaseModel):
-    test_data_source_dir: str = "/Users/hamiltones/OneDrive/Journal/test"
-    test_data_dir_path: str = "/Users/hamiltones/code/journal_ocr_ext/test_data/test_journal"
-    sample_pdf_path: str = f"/Users/hamiltones/code/journal_ocr_ext/test_data/samples/sample.pdf"
-    sample_image_path: str = f"/Users/hamiltones/code/journal_ocr_ext/test_data/samples/sample.jpg"
+    test_data_source_dir: str = ""
+    test_data_dir_path: str = ""
+    sample_pdf_path: str = ""
+    sample_image_path: str = ""
     test_embedding_storage_path: str = f"{test_data_dir_path}/embeddings.jsonl"
 
 class Settings(BaseModel):

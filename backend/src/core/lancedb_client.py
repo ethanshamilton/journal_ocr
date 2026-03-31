@@ -31,8 +31,8 @@ class AsyncLocalLanceDB:
         journal = settings.file_storage.journal_storage_path
         evergreen = settings.file_storage.evergreen_storage_path
 
-        if not (chats and embeddings and journal):
-            raise FileNotFoundError("ensure chats, embeddings, and journal data are available")
+        if not (embeddings and journal):
+            raise FileNotFoundError("ensure embeddings and journal data are available")
 
         # load to dataframes
         threads_df, messages_df = load_chats_to_dfs(chats)

@@ -29,9 +29,18 @@ def get_date_part(filepath):
     return os.path.basename(filepath).replace(".md", "")
 
 def load_chats_to_dfs(chats_file: str) -> tuple[pl.DataFrame, pl.DataFrame]:
-    """ Loads chat history from local JSON export into separate Polars DataFrames for threads and messages. """
+    """Loads chat history into separate Polars DataFrames for threads and messages.
+
+    If chats_file does not exist, return empty dataframes so the app can start
+    with empty thread/message tables.
+    """
     if not os.path.exists(chats_file):
-        raise FileNotFoundError(f"Chats not found at {chats_file}")
+        chats_dir = os.path.dirname(chats_file)
+        if chats_dir:
+            os.makedirs(chats_dir, exist_ok=True)
+        with open(chats_file, 'w', encoding='utf-8') as f:
+            json.dump({"threads": [], "messages": []}, f)
+        logging.warning(f"Chats not found at {chats_file}; created empty chats.json")
 
     with open(chats_file, 'r') as f:
         data = json.load(f)

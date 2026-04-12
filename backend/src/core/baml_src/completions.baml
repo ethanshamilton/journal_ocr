@@ -23,11 +23,14 @@ function IntentClassifier(query: string) -> SearchOptions {
 
 // DIRECT CHAT
 
-function DirectChat(messages: string, entries: string) -> string {
+function DirectChat(messages: string, entries: string, custom_instructions: string) -> string {
     client "openai/gpt-5"
     prompt #"
         <INSTRUCTIONS>
         Provide an empathetic and analytical response to the user.
+
+        Additional custom instructions from CUSTOM_INSTRUCTIONS.md:
+        {{custom_instructions}}
         </INSTRUCTIONS>
         <RELEVANT_ENTRIES>
         {{entries}}
@@ -111,7 +114,8 @@ function AgentSynthesizer(
   user_query: string,
   chat_history: string,
   accumulated_context: string,
-  search_trace: string
+  search_trace: string,
+  custom_instructions: string
 ) -> string {
   client "openai/gpt-5"
   prompt #"
@@ -121,6 +125,9 @@ function AgentSynthesizer(
     The search trace shows how the agent gathered information to answer this query. Use all relevant context to provide a comprehensive, thoughtful response.
 
     Be specific and reference actual content from the entries when relevant. If the entries don't contain enough information to fully answer the query, acknowledge this honestly.
+
+    Additional custom instructions from CUSTOM_INSTRUCTIONS.md:
+    {{custom_instructions}}
     </INSTRUCTIONS>
 
     <SEARCH_TRACE>

@@ -29,3 +29,6 @@ ui/public/tags.json
 .vscode
 .coverage
 lance.*
+
+# custom instructions
+CUSTOM_INSTRUCTIONS.md

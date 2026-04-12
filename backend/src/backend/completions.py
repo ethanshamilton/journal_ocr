@@ -1,11 +1,29 @@
 # completions.py
 # code for dealing with LLM stuff in the app
+import logging
+from pathlib import Path
+
 from baml_py import ClientRegistry
 
 from core.baml_client.async_client import b
 from core.baml_client.types import SearchOptions, SearchToolCall
 from core.models import ChatRequest
 from core.llm import get_embedding
+
+logger = logging.getLogger(__name__)
+
+CUSTOM_INSTRUCTIONS_PATH = Path(__file__).resolve().parents[3] / "CUSTOM_INSTRUCTIONS.md"
+
+
+def load_custom_instructions() -> str:
+    """Load optional user-provided instructions from CUSTOM_INSTRUCTIONS.md."""
+    try:
+        if not CUSTOM_INSTRUCTIONS_PATH.exists():
+            return ""
+        return CUSTOM_INSTRUCTIONS_PATH.read_text(encoding="utf-8").strip()
+    except Exception as e:
+        logger.warning(f"Failed to load custom instructions from {CUSTOM_INSTRUCTIONS_PATH}: {e}")
+        return ""
 
 
 async def intent_classifier(query: str) -> SearchOptions:
@@ -15,6 +33,7 @@ async def intent_classifier(query: str) -> SearchOptions:
 async def chat_response(request: ChatRequest, chat_history: list, entries_str: str) -> str:
     cr = ClientRegistry()
     cr.set_primary(f"{request.provider}/{request.model}")
+    custom_instructions = load_custom_instructions()
 
     # prepare messages list
     chat_history.append({
@@ -32,7 +51,7 @@ async def chat_response(request: ChatRequest, chat_history: list, entries_str: s
         messages_intermediate.append(f"[{role.upper()}]: {content}")
     messages_str = "\n\n".join(messages_intermediate)
 
-    return await b.DirectChat(messages_str, entries_str, {"client_registry": cr})
+    return await b.DirectChat(messages_str, entries_str, custom_instructions, {"client_registry": cr})
 
 
 async def agent_tool_selector(
@@ -55,6 +74,7 @@ async def agent_synthesizer(
     """Generate final response using accumulated context. Uses user's selected model."""
     cr = ClientRegistry()
     cr.set_primary(f"{request.provider}/{request.model}")
+    custom_instructions = load_custom_instructions()
 
     # format chat history with current query
     chat_history.append({
@@ -74,5 +94,6 @@ async def agent_synthesizer(
         messages_str,
         accumulated_context,
         search_trace,
+        custom_instructions,
         {"client_registry": cr}
     )

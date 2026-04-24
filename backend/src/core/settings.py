@@ -14,6 +14,7 @@ class FileStorageSettings(BaseModel):
     embedding_storage_path: str = "/mnt/c/Users/Administrator/OneDrive/Journal/embeddings.jsonl"
     journal_storage_path: str = "/mnt/c/Users/Administrator/OneDrive/Journal/Daily Pages"
     evergreen_storage_path: str = "/mnt/c/Users/Administrator/OneDrive/Journal/Evergreen"
+    personality_storage_path: str = "/mnt/c/Users/Administrator/OneDrive/Journal/Personalities"
 
 class ModelSettings(BaseModel):
     embedding_model: str = "gemini-embedding-001" # Google models only

@@ -9,6 +9,7 @@ from core.baml_client.async_client import b
 from core.baml_client.types import SearchOptions, SearchToolCall
 from core.models import ChatRequest
 from core.llm import get_embedding
+from backend.personalities import Personality
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,27 @@ async def intent_classifier(query: str) -> SearchOptions:
     return await b.IntentClassifier(query)
 
 
-async def chat_response(request: ChatRequest, chat_history: list, entries_str: str) -> str:
+async def classify_personality(query: str, personalities: list[Personality]) -> Personality | None:
+    """Classify the query and return the matching personality, or None for default."""
+    if not personalities:
+        return None
+
+    options_str = "\n".join(
+        f"- {p.title}: {p.description}" for p in personalities
+    )
+    selected_title = await b.PersonalityClassifier(query, options_str)
+    selected_title = selected_title.strip()
+
+    for p in personalities:
+        if p.title.lower() == selected_title.lower():
+            logger.info(f"Selected personality: {p.title}")
+            return p
+
+    logger.info(f"Classifier returned '{selected_title}', no match found — using default")
+    return None
+
+
+async def chat_response(request: ChatRequest, chat_history: list, entries_str: str, personality_prompt: str = "") -> str:
     cr = ClientRegistry()
     cr.set_primary(f"{request.provider}/{request.model}")
     custom_instructions = load_custom_instructions()
@@ -51,7 +72,7 @@ async def chat_response(request: ChatRequest, chat_history: list, entries_str: s
         messages_intermediate.append(f"[{role.upper()}]: {content}")
     messages_str = "\n\n".join(messages_intermediate)
 
-    return await b.DirectChat(messages_str, entries_str, custom_instructions, {"client_registry": cr})
+    return await b.DirectChat(messages_str, entries_str, custom_instructions, personality_prompt, {"client_registry": cr})
 
 
 async def agent_tool_selector(
@@ -69,7 +90,8 @@ async def agent_synthesizer(
     request: ChatRequest,
     chat_history: list,
     accumulated_context: str,
-    search_trace: str
+    search_trace: str,
+    personality_prompt: str = ""
 ) -> str:
     """Generate final response using accumulated context. Uses user's selected model."""
     cr = ClientRegistry()
@@ -95,5 +117,6 @@ async def agent_synthesizer(
         accumulated_context,
         search_trace,
         custom_instructions,
+        personality_prompt,
         {"client_registry": cr}
     )

@@ -21,13 +21,44 @@ function IntentClassifier(query: string) -> SearchOptions {
   "#
 }
 
+// PERSONALITY CLASSIFICATION
+
+function PersonalityClassifier(query: string, personality_options: string) -> string {
+  client "openai/gpt-5-mini"
+  prompt #"
+    <INSTRUCTIONS>
+    You are selecting a response personality for a journal chat assistant.
+    Based on the user's query, choose the most appropriate personality from the options below.
+    Return ONLY the exact title of the selected personality.
+
+    If none of the personalities seem like a good fit, return "default".
+    </INSTRUCTIONS>
+
+    <PERSONALITY_OPTIONS>
+    {{personality_options}}
+    </PERSONALITY_OPTIONS>
+
+    <QUERY>
+    {{query}}
+    </QUERY>
+
+    <OUTPUT_FORMAT>
+    {{ctx.output_format}}
+    </OUTPUT_FORMAT>
+  "#
+}
+
 // DIRECT CHAT
 
-function DirectChat(messages: string, entries: string, custom_instructions: string) -> string {
+function DirectChat(messages: string, entries: string, custom_instructions: string, personality_prompt: string) -> string {
     client "openai/gpt-5"
     prompt #"
         <INSTRUCTIONS>
+        {% if personality_prompt %}
+        {{personality_prompt}}
+        {% else %}
         Provide an empathetic and analytical response to the user.
+        {% endif %}
 
         Additional custom instructions from CUSTOM_INSTRUCTIONS.md:
         {{custom_instructions}}
@@ -115,12 +146,19 @@ function AgentSynthesizer(
   chat_history: string,
   accumulated_context: string,
   search_trace: string,
-  custom_instructions: string
+  custom_instructions: string,
+  personality_prompt: string
 ) -> string {
   client "openai/gpt-5"
   prompt #"
     <INSTRUCTIONS>
+    {% if personality_prompt %}
+    {{personality_prompt}}
+
+    Use the journal entries retrieved through multiple searches to inform your response.
+    {% else %}
     Provide an empathetic and analytical response to the user based on the journal entries retrieved through multiple searches.
+    {% endif %}
 
     The search trace shows how the agent gathered information to answer this query. Use all relevant context to provide a comprehensive, thoughtful response.
 

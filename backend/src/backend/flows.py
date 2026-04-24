@@ -9,7 +9,8 @@ from core.lancedb_client import AsyncLocalLanceDB
 from core.log_config import setup_logging
 from core.models import ChatRequest, ChatResponse, Entry, RetrievedDoc, AgentSearchState
 from core.llm import get_embedding
-from backend.completions import intent_classifier, chat_response, agent_tool_selector, agent_synthesizer
+from backend.completions import intent_classifier, chat_response, agent_tool_selector, agent_synthesizer, classify_personality
+from backend.personalities import load_personalities
 
 logger = setup_logging()
 
@@ -56,7 +57,12 @@ async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatRe
 
     chat_history = await _load_chat_history(lance, req)
 
-    llm_response = await chat_response(req, chat_history, entries_str)
+    # classify personality for this message
+    personalities = load_personalities()
+    personality = await classify_personality(req.query, personalities)
+    personality_prompt = personality.prompt if personality else ""
+
+    llm_response = await chat_response(req, chat_history, entries_str, personality_prompt)
 
     return ChatResponse(response=llm_response, docs=response_docs, thread_id=req.thread_id)
 
@@ -202,12 +208,18 @@ async def agentic_llm_flow_stream(lance: AsyncLocalLanceDB, req: ChatRequest) ->
     # load chat history
     chat_history = await _load_chat_history(lance, req)
 
+    # classify personality for this message
+    personalities = load_personalities()
+    personality = await classify_personality(req.query, personalities)
+    personality_prompt = personality.prompt if personality else ""
+
     # synthesize final response
     llm_response = await agent_synthesizer(
         request=req,
         chat_history=chat_history,
         accumulated_context=state.get_context_string(),
-        search_trace=state.get_trace_string()
+        search_trace=state.get_trace_string(),
+        personality_prompt=personality_prompt
     )
 
     # build response docs for frontend

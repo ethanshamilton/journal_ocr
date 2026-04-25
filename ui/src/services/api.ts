@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Thread, ThreadMessage, SearchIteration } from '../types'
+import type { Thread, ThreadMessage, SearchIteration, MessageMetadata } from '../types'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -64,6 +64,7 @@ export interface ChatResponse {
   response: string
   docs: RetrievedDoc[]
   thread_id?: string
+  message_metadata?: MessageMetadata | null
 }
 
 export interface StatusResponse {
@@ -116,10 +117,16 @@ export const apiService = {
     await api.put(`/threads/${threadId}`, { title })
   },
 
-  async addMessageToThread(threadId: string, role: string, content: string): Promise<ThreadMessage> {
+  async addMessageToThread(
+    threadId: string,
+    role: string,
+    content: string,
+    metadata?: MessageMetadata | null,
+  ): Promise<ThreadMessage> {
     const response = await api.post<ThreadMessage>(`/threads/${threadId}/messages`, {
       role,
-      content
+      content,
+      metadata,
     })
     return response.data
   },

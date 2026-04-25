@@ -20,6 +20,54 @@ class Entry(BaseModel):
     embedding: list[float] | None
     entry_type: str = "daily"
 
+### message metadata
+
+class MessageModelMetadata(BaseModel):
+    provider: str
+    model: str
+
+
+class MessagePersonalityMetadata(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    prompt: str | None = None
+
+
+class MessageContextEntry(BaseModel):
+    date: str | None = None
+    title: str
+    entry_type: str = "daily"
+    text: str
+    tags: list[str] = Field(default_factory=list)
+    distance: float | None = None
+    source: str = "journal"
+
+
+class MessageContextChat(BaseModel):
+    thread_id: str
+    message_id: str | None = None
+    role: str | None = None
+    content: str
+    timestamp: datetime | None = None
+
+
+class SearchIteration(BaseModel):
+    """Record of a single search iteration in the agent loop."""
+    iteration: int
+    tool: str
+    reasoning: str
+    query: str | None = None
+    results_count: int
+    new_entries_added: int
+
+
+class MessageMetadata(BaseModel):
+    model: MessageModelMetadata
+    personality: MessagePersonalityMetadata | None = None
+    context_entries: list[MessageContextEntry] = Field(default_factory=list)
+    context_chats: list[MessageContextChat] = Field(default_factory=list)
+    retrieval_trace: list[SearchIteration] = Field(default_factory=list)
+
 ### API interfaces
 
 class QueryRequest(BaseModel):
@@ -49,6 +97,7 @@ class ChatResponse(BaseModel):
     response: str
     docs: list[RetrievedDoc]
     thread_id: Optional[str]
+    message_metadata: MessageMetadata | None = None
 
 class Thread(BaseModel):
     thread_id: str
@@ -63,6 +112,7 @@ class Message(BaseModel):
     timestamp: datetime
     role: str  # 'user' or 'assistant'
     content: str
+    metadata: MessageMetadata | None = None
 
 ### thread management
 
@@ -77,6 +127,7 @@ class CreateThreadResponse(BaseModel):
 class AddMessageRequest(BaseModel):
     role: str
     content: str
+    metadata: MessageMetadata | None = None
 
 class UpdateThreadRequest(BaseModel):
     title: str
@@ -88,17 +139,6 @@ class UnprocessedDocs(BaseModel):
     to_embed: list[str]
 
 ### agent loop state management
-
-@dataclass
-class SearchIteration:
-    """Record of a single search iteration in the agent loop."""
-    iteration: int
-    tool: str
-    reasoning: str
-    query: Optional[str]
-    results_count: int
-    new_entries_added: int
-
 
 @dataclass
 class AgentSearchState:

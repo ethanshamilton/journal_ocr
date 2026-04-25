@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './ChatInterface.css'
 import { apiService } from '../services/api'
-import type { Document as CustomDocument, ThreadMessage, SearchIteration } from '../types'
+import type { Document as CustomDocument, MessageMetadata, SearchIteration, ThreadMessage } from '../types'
 import ReactMarkdown from 'react-markdown'
 
 const providers = [
@@ -30,10 +30,11 @@ const providers = [
 ]
 
 interface Message {
-  id: number
+  id: string
   text: string
   sender: 'user' | 'assistant'
   timestamp: Date
+  metadata?: MessageMetadata | null
 }
 
 interface ChatInterfaceProps {
@@ -41,47 +42,177 @@ interface ChatInterfaceProps {
   onLoadThread?: (threadId: string, messages: ThreadMessage[]) => void
 }
 
+const WELCOME_MESSAGE = "Hello! I'm here to help you search through your documents. What would you like to know?"
+
+const makeWelcomeMessage = (): Message => ({
+  id: crypto.randomUUID(),
+  text: WELCOME_MESSAGE,
+  sender: 'assistant',
+  timestamp: new Date(),
+})
+
+const MessageMetadataView = ({ metadata, onFlipBack }: { metadata: MessageMetadata; onFlipBack: () => void }) => {
+  return (
+    <div className="metadata-view" onClick={(e) => e.stopPropagation()}>
+      <div className="metadata-header">
+        <h4>Message Metadata</h4>
+        <button className="metadata-flip-back" onClick={onFlipBack}>Back</button>
+      </div>
+
+      <section>
+        <h5>Model</h5>
+        <code>{metadata.model.provider}/{metadata.model.model}</code>
+      </section>
+
+      <section>
+        <h5>Personality</h5>
+        {metadata.personality?.title ? (
+          <>
+            <div className="metadata-title">{metadata.personality.title}</div>
+            {metadata.personality.description && (
+              <div className="metadata-muted">{metadata.personality.description}</div>
+            )}
+            {metadata.personality.prompt && (
+              <details>
+                <summary>Prompt</summary>
+                <pre>{metadata.personality.prompt}</pre>
+              </details>
+            )}
+          </>
+        ) : (
+          <div className="metadata-muted">Default / none</div>
+        )}
+      </section>
+
+      <section>
+        <h5>Context Entries ({metadata.context_entries.length})</h5>
+        {metadata.context_entries.length === 0 ? (
+          <div className="metadata-muted">No entries recorded.</div>
+        ) : metadata.context_entries.map((entry, idx) => (
+          <details key={`${entry.date ?? 'no-date'}-${entry.title}-${idx}`}>
+            <summary>
+              {entry.date ? `${entry.date} — ` : ''}{entry.title}
+              {entry.distance !== null && entry.distance !== undefined ? ` · distance ${entry.distance.toFixed(4)}` : ''}
+            </summary>
+            <div className="metadata-entry-meta">
+              <span>{entry.entry_type}</span>
+              <span>{entry.source}</span>
+              {entry.tags.length > 0 && <span>{entry.tags.join(' ')}</span>}
+            </div>
+            <pre>{entry.text}</pre>
+          </details>
+        ))}
+      </section>
+
+      <section>
+        <h5>Context Chats ({metadata.context_chats.length})</h5>
+        {metadata.context_chats.length === 0 ? (
+          <div className="metadata-muted">No chat retrieval context recorded.</div>
+        ) : metadata.context_chats.map((chat, idx) => (
+          <details key={`${chat.thread_id}-${chat.message_id ?? idx}`}>
+            <summary>{chat.role ?? 'message'} · {chat.thread_id.slice(0, 8)}</summary>
+            <pre>{chat.content}</pre>
+          </details>
+        ))}
+      </section>
+
+      <section>
+        <h5>Retrieval Trace ({metadata.retrieval_trace.length})</h5>
+        {metadata.retrieval_trace.length === 0 ? (
+          <div className="metadata-muted">No retrieval trace recorded.</div>
+        ) : metadata.retrieval_trace.map((iter) => (
+          <div key={iter.iteration} className="metadata-trace-item">
+            <div className="metadata-trace-header">
+              <strong>{iter.iteration}. {iter.tool}</strong>
+              <span>{iter.results_count} results, {iter.new_entries_added} new</span>
+            </div>
+            {iter.query && <code>{iter.query}</code>}
+            <p>{iter.reasoning}</p>
+          </div>
+        ))}
+      </section>
+    </div>
+  )
+}
+
+const ChatMessageCard = ({ message }: { message: Message }) => {
+  const [flipped, setFlipped] = useState(false)
+  const hasMetadata = Boolean(message.metadata)
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    pointerStartRef.current = { x: event.clientX, y: event.clientY }
+  }
+
+  const handleFrontClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!hasMetadata) return
+
+    const selectedText = window.getSelection()?.toString().trim()
+    if (selectedText) return
+
+    const pointerStart = pointerStartRef.current
+    if (pointerStart) {
+      const moved = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y)
+      if (moved > 5) return
+    }
+
+    setFlipped(true)
+  }
+
+  return (
+    <div className={`message-card ${flipped ? 'flipped' : ''} ${hasMetadata ? 'has-metadata' : ''}`}>
+      {!flipped ? (
+        <div
+          className={`message-content ${hasMetadata ? 'clickable' : ''}`}
+          onPointerDown={handlePointerDown}
+          onClick={handleFrontClick}
+          title={hasMetadata ? 'Click to view metadata' : undefined}
+        >
+          <ReactMarkdown>{message.text}</ReactMarkdown>
+          {hasMetadata && <div className="metadata-hint">click for metadata</div>}
+        </div>
+      ) : (
+        <div className="message-content metadata-content">
+          <MessageMetadataView metadata={message.metadata!} onFlipBack={() => setFlipped(false)} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThread }) => {
 
   const [selectedModel, setSelectedModel] = useState({
     provider: "anthropic",
-    model: "claude-opus-4-20250514"
+    model: "claude-opus-4-6"
   })
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      text: "Hello! I'm here to help you search through your documents. What would you like to know?",
-      sender: 'assistant',
-      timestamp: new Date()
-    }
-  ])
+  const [messages, setMessages] = useState<Message[]>([makeWelcomeMessage()])
   const [inputText, setInputText] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
   const [isThreadSaved, setIsThreadSaved] = useState(false)
-  const [retrievedDocs, setRetrievedDocs] = useState<CustomDocument[]>([])
   const [searchIterations, setSearchIterations] = useState<SearchIteration[]>([])
 
   const loadThread = (threadId: string, threadMessages: ThreadMessage[]) => {
     setCurrentThreadId(threadId)
     setIsThreadSaved(true) // loaded threads are already saved
-    const convertedMessages = threadMessages.map((msg, index) => ({
-      id: index + 1,
+    const convertedMessages = threadMessages.map((msg) => ({
+      id: msg.message_id,
       text: msg.content,
       sender: msg.role === 'user' ? 'user' as const : 'assistant' as const,
-      timestamp: new Date(msg.timestamp)
+      timestamp: new Date(msg.timestamp),
+      metadata: msg.metadata ?? null,
     }))
     setMessages(convertedMessages)
-    setRetrievedDocs([]) // clear retrieved docs when loading a thread
   }
 
   // expose loadThread function to parent
   useEffect(() => {
     if (onLoadThread) {
       // this is a bit hacky but works for now
-      (window as any).loadThreadIntoChat = loadThread
+      ;(window as any).loadThreadIntoChat = loadThread
     }
   }, [onLoadThread])
 
@@ -93,8 +224,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     // save all existing messages to the new thread
     try {
       for (const message of messages) {
-        if (message.sender !== 'assistant' || message.text !== "Hello! I'm here to help you search through your documents. What would you like to know?") {
-          await apiService.addMessageToThread(response.thread_id, message.sender === 'user' ? 'user' : 'assistant', message.text)
+        if (message.sender !== 'assistant' || message.text !== WELCOME_MESSAGE) {
+          await apiService.addMessageToThread(
+            response.thread_id,
+            message.sender === 'user' ? 'user' : 'assistant',
+            message.text,
+            message.metadata ?? null,
+          )
         }
       }
     } catch (error) {
@@ -105,13 +241,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
   const startNewChat = () => {
     setCurrentThreadId(null)
     setIsThreadSaved(false)
-    setRetrievedDocs([]) // clear retrieved docs for new chat
-    setMessages([{
-      id: 1,
-      text: "Hello! I'm here to help you search through your documents. What would you like to know?",
-      sender: 'assistant',
-      timestamp: new Date()
-    }])
+    setMessages([makeWelcomeMessage()])
   }
 
   const sendMessage = async () => {
@@ -119,7 +249,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
 
     const query = inputText
     const userMessage: Message = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       text: query,
       sender: 'user',
       timestamp: new Date()
@@ -132,6 +262,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     try {
       let similarDocs: CustomDocument[] = []
       let responseText = ""
+      let responseMetadata: MessageMetadata | null = null
 
       // always use streaming agentic flow with fresh retrieval
       setSearchIterations([])
@@ -154,15 +285,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
             content: doc.entry.text || JSON.stringify(doc.entry)
           }))
 
-          setRetrievedDocs(similarDocs)
           setDocuments(similarDocs)
           responseText = combinedResponse.response
+          responseMetadata = combinedResponse.message_metadata ?? null
 
           const botMessage: Message = {
-            id: Date.now() + 1,
+            id: crypto.randomUUID(),
             text: combinedResponse.response,
             sender: 'assistant',
-            timestamp: new Date()
+            timestamp: new Date(),
+            metadata: responseMetadata,
           }
           setMessages(prev => [...prev, botMessage])
           setSearchIterations([])
@@ -173,7 +305,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
       if (currentThreadId && isThreadSaved) {
         try {
           await apiService.addMessageToThread(currentThreadId, 'user', query)
-          await apiService.addMessageToThread(currentThreadId, 'assistant', responseText)
+          await apiService.addMessageToThread(currentThreadId, 'assistant', responseText, responseMetadata)
         } catch (error) {
           console.error('Error saving messages to thread:', error)
         }
@@ -181,7 +313,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
     } catch (error) {
       console.error('Error querying API:', error)
       const errorMessage: Message = {
-        id: Date.now() + 1,
+        id: crypto.randomUUID(),
         text: 'Sorry, I encountered an error while processing your request. Please make sure the backend is running.',
         sender: 'assistant',
         timestamp: new Date()
@@ -248,9 +380,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ setDocuments, onLoadThrea
             key={message.id}
             className={`message ${message.sender === 'user' ? 'user-message' : 'bot-message'}`}
           >
-            <div className="message-content">
-              <ReactMarkdown>{message.text}</ReactMarkdown>
-            </div>
+            <ChatMessageCard message={message} />
             <div className="message-timestamp">
               {message.timestamp.toLocaleTimeString()}
             </div>

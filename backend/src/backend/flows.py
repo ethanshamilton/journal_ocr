@@ -1,32 +1,100 @@
-import asyncio
-import time
-import tiktoken
-from datetime import datetime
 from typing import AsyncGenerator
 
 from core.baml_client.types import SearchOptions, SearchToolType
 from core.lancedb_client import AsyncLocalLanceDB
 from core.log_config import setup_logging
-from core.models import ChatRequest, ChatResponse, Entry, RetrievedDoc, AgentSearchState
+from core.models import (
+    AgentSearchState,
+    ChatRequest,
+    ChatResponse,
+    Entry,
+    MessageContextEntry,
+    MessageMetadata,
+    MessageModelMetadata,
+    MessagePersonalityMetadata,
+    RetrievedDoc,
+    SearchIteration,
+)
 from core.llm import get_embedding
 from backend.completions import intent_classifier, chat_response, agent_tool_selector, agent_synthesizer, classify_personality
-from backend.personalities import load_personalities
+from backend.personalities import Personality, load_personalities
 
 logger = setup_logging()
 
 
+def _personality_metadata(personality: Personality | None) -> MessagePersonalityMetadata | None:
+    """Store personality metadata."""
+    if not personality:
+        return None
+    return MessagePersonalityMetadata(
+        title=personality.title,
+        description=personality.description,
+        prompt=personality.prompt,
+    )
+
+
+def _entry_metadata(entry: Entry, distance: float | None = None, source: str = "journal") -> MessageContextEntry:
+    "Store entry metadata"
+    return MessageContextEntry(
+        date=entry.date,
+        title=entry.title,
+        entry_type=entry.entry_type,
+        text=entry.text,
+        tags=entry.tags,
+        distance=distance,
+        source=source,
+    )
+
+
+def _message_metadata(
+    req: ChatRequest,
+    personality: Personality | None,
+    context_entries: list[MessageContextEntry],
+    retrieval_trace: list[SearchIteration],
+) -> MessageMetadata:
+    """Store message metadata"""
+    return MessageMetadata(
+        model=MessageModelMetadata(provider=req.provider, model=req.model),
+        personality=_personality_metadata(personality),
+        context_entries=context_entries,
+        context_chats=[],
+        retrieval_trace=retrieval_trace,
+    )
+
+
+def _event_data(iteration: SearchIteration) -> dict:
+    return iteration.model_dump()
+
+
 async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatResponse:
-    entries = []
-    response_docs = []
+    response_docs: list[RetrievedDoc] = []
+    context_entries: list[MessageContextEntry] = []
+    retrieval_trace: list[SearchIteration] = []
     entries_str = ""
 
     if req.existing_docs:
         entries_str = "Here are the relevant journal entries from our previous conversation:\n"
         for i, doc in enumerate(req.existing_docs, 1):
+            title = doc.get("title", "Untitled")
+            content = doc.get("content", "")
             entries_str += f"Entry {i}:\n"
-            entries_str += f"  title: {doc.get('title', 'Untitled')}\n"
-            entries_str += f"  content: {doc.get('content', '')}\n"
+            entries_str += f"  title: {title}\n"
+            entries_str += f"  content: {content}\n"
             entries_str += "\n"
+            context_entries.append(MessageContextEntry(
+                title=title,
+                text=content,
+                source="previous_context",
+            ))
+
+        retrieval_trace.append(SearchIteration(
+            iteration=0,
+            tool="EXISTING_DOCS",
+            reasoning="Reused relevant documents supplied by the frontend.",
+            query=req.query,
+            results_count=len(req.existing_docs),
+            new_entries_added=len(req.existing_docs),
+        ))
     else:
         # do normal retrieval
         query_intent = await intent_classifier(req.query)
@@ -43,6 +111,16 @@ async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatRe
                 entries_str += "\n"
                 entry_for_response = entry.model_copy(update={"embedding": None})
                 response_docs.append(RetrievedDoc(entry=entry_for_response, distance=distance))
+                context_entries.append(_entry_metadata(entry, distance))
+
+            retrieval_trace.append(SearchIteration(
+                iteration=0,
+                tool="VECTOR",
+                reasoning="Intent classifier selected vector search.",
+                query=req.query,
+                results_count=len(entries),
+                new_entries_added=len(entries),
+            ))
 
         elif query_intent == SearchOptions.RECENT:
             entries = await lance.get_recent_entries()
@@ -54,6 +132,16 @@ async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatRe
                 entries_str += "\n"
                 entry_for_response = entry.model_copy(update={"embedding": None})
                 response_docs.append(RetrievedDoc(entry=entry_for_response, distance=None))
+                context_entries.append(_entry_metadata(entry))
+
+            retrieval_trace.append(SearchIteration(
+                iteration=0,
+                tool="RECENT",
+                reasoning="Intent classifier selected recent-entry retrieval.",
+                query=req.query,
+                results_count=len(entries),
+                new_entries_added=len(entries),
+            ))
 
     chat_history = await _load_chat_history(lance, req)
 
@@ -63,8 +151,14 @@ async def default_llm_flow(lance: AsyncLocalLanceDB, req: ChatRequest) -> ChatRe
     personality_prompt = personality.prompt if personality else ""
 
     llm_response = await chat_response(req, chat_history, entries_str, personality_prompt)
+    metadata = _message_metadata(req, personality, context_entries, retrieval_trace)
 
-    return ChatResponse(response=llm_response, docs=response_docs, thread_id=req.thread_id)
+    return ChatResponse(
+        response=llm_response,
+        docs=response_docs,
+        thread_id=req.thread_id,
+        message_metadata=metadata,
+    )
 
 
 async def _load_chat_history(lance: AsyncLocalLanceDB, request: ChatRequest) -> list[dict]:
@@ -124,14 +218,7 @@ async def agentic_llm_flow_stream(lance: AsyncLocalLanceDB, req: ChatRequest) ->
 
     yield {
         "event": "search_iteration",
-        "data": {
-            "iteration": 0,
-            "tool": "RECENT_ENTRIES_PRESEED",
-            "reasoning": "Always include recent entries for temporal context",
-            "query": None,
-            "results_count": len(recent_entries),
-            "new_entries_added": new_count,
-        }
+        "data": _event_data(state.search_trace[-1]),
     }
 
     # agent loop - iteratively select and execute tools
@@ -157,14 +244,7 @@ async def agentic_llm_flow_stream(lance: AsyncLocalLanceDB, req: ChatRequest) ->
                 )
                 yield {
                     "event": "search_iteration",
-                    "data": {
-                        "iteration": iteration,
-                        "tool": "DONE",
-                        "reasoning": tool_call.reasoning,
-                        "query": None,
-                        "results_count": 0,
-                        "new_entries_added": 0,
-                    }
+                    "data": _event_data(state.search_trace[-1]),
                 }
                 break
 
@@ -183,14 +263,7 @@ async def agentic_llm_flow_stream(lance: AsyncLocalLanceDB, req: ChatRequest) ->
 
             yield {
                 "event": "search_iteration",
-                "data": {
-                    "iteration": iteration,
-                    "tool": tool_call.tool.value,
-                    "reasoning": tool_call.reasoning,
-                    "query": tool_call.query,
-                    "results_count": len(entries),
-                    "new_entries_added": new_count,
-                }
+                "data": _event_data(state.search_trace[-1]),
             }
 
             logger.info(f"Agent retrieved {len(entries)} entries, {new_count} new")
@@ -222,15 +295,24 @@ async def agentic_llm_flow_stream(lance: AsyncLocalLanceDB, req: ChatRequest) ->
         personality_prompt=personality_prompt
     )
 
-    # build response docs for frontend
-    response_docs = []
+    # build response docs and metadata context for frontend
+    response_docs: list[RetrievedDoc] = []
+    context_entries: list[MessageContextEntry] = []
     for entry in state.accumulated_entries.values():
         entry_for_response = entry.model_copy(update={"embedding": None})
         response_docs.append(RetrievedDoc(entry=entry_for_response, distance=None))
+        context_entries.append(_entry_metadata(entry))
+
+    metadata = _message_metadata(req, personality, context_entries, state.search_trace)
 
     yield {
         "event": "chat_response",
-        "data": ChatResponse(response=llm_response, docs=response_docs, thread_id=req.thread_id).model_dump()
+        "data": ChatResponse(
+            response=llm_response,
+            docs=response_docs,
+            thread_id=req.thread_id,
+            message_metadata=metadata,
+        ).model_dump(mode="json")
     }
 
 

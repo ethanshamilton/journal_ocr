@@ -1,4 +1,5 @@
 # lancedb_client.py
+import json
 import uuid
 import logging
 from datetime import datetime
@@ -76,9 +77,12 @@ class AsyncLocalLanceDB:
                     pa.field("timestamp", pa.string()),
                     pa.field("role", pa.string()),
                     pa.field("content", pa.string()),
+                    pa.field("metadata_json", pa.string()),
                 ])
                 await self.db.create_table("messages", schema=messages_schema)
                 logging.info("[lancedb] created empty messages table")
+
+        await self._ensure_messages_metadata_column()
 
         # create indexes
         journal_table = await self.db.open_table("journal")
@@ -193,25 +197,52 @@ class AsyncLocalLanceDB:
 
     ### message management
 
+    async def _ensure_messages_metadata_column(self) -> None:
+        """Add metadata_json to existing messages tables created before message metadata."""
+        table = await self.db.open_table("messages")
+        arrow_table = await table.to_arrow()
+        if "metadata_json" in arrow_table.column_names:
+            return
+
+        df = pl.from_arrow(arrow_table).with_columns(
+            pl.lit(None).cast(pl.Utf8).alias("metadata_json")
+        )
+        await self.db.create_table("messages", data=df, mode="overwrite")
+        logging.info("[lancedb] migrated messages table with metadata_json column")
+
+    def _decode_message_metadata(self, message: dict) -> dict:
+        raw_metadata = message.pop("metadata_json", None)
+        if raw_metadata:
+            try:
+                message["metadata"] = json.loads(raw_metadata)
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to decode message metadata for {message.get('message_id')}")
+                message["metadata"] = None
+        else:
+            message["metadata"] = None
+        return message
+
     async def get_thread_messages(self, thread_id: str) -> list[dict]:
         """Get all messages for a thread sorted by timestamp"""
         table = await self.db.open_table("messages")
         arrow_table = await table.to_arrow()
         df = pl.from_arrow(arrow_table).filter(pl.col("thread_id") == thread_id)
         df = df.sort("timestamp")
-        return df.to_dicts()
+        return [self._decode_message_metadata(msg) for msg in df.to_dicts()]
 
-    async def save_message(self, thread_id: str, role: str, content: str) -> dict:
+    async def save_message(self, thread_id: str, role: str, content: str, metadata: dict | None = None) -> dict:
         """Save a message to a thread"""
         message_id = str(uuid.uuid4())
         now = datetime.utcnow()
+        metadata_json = json.dumps(metadata) if metadata else None
 
         message_doc = {
             "message_id": message_id,
             "thread_id": thread_id,
             "timestamp": now.isoformat(),
             "role": role,
-            "content": content
+            "content": content,
+            "metadata_json": metadata_json,
         }
 
         messages_table = await self.db.open_table("messages")
@@ -220,4 +251,4 @@ class AsyncLocalLanceDB:
         # update thread's updated_at
         await self.update_thread(thread_id, {})
 
-        return message_doc
+        return self._decode_message_metadata(message_doc.copy())

@@ -137,7 +137,8 @@ async def add_message_to_thread(
     if not await db.get_thread(thread_id):
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    message_doc = await db.save_message(thread_id, req.role, req.content)
+    metadata = req.metadata.model_dump(mode="json") if req.metadata else None
+    message_doc = await db.save_message(thread_id, req.role, req.content, metadata)
     return Message(**message_doc)
 
 

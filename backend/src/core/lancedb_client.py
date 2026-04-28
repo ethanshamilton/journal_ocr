@@ -169,14 +169,15 @@ class AsyncLocalLanceDB:
             return None
         return df.to_dicts()[0]
 
-    async def update_thread(self, thread_id: str, updates: dict) -> bool:
-        """Update a thread (e.g., title)"""
+    async def update_thread(self, thread_id: str, updates: dict, touch: bool = True) -> bool:
+        """Update a thread (e.g., title). Set touch=False to preserve updated_at."""
         existing = await self.get_thread(thread_id)
         if not existing:
             return False
 
         existing.update(updates)
-        existing["updated_at"] = datetime.utcnow().isoformat()
+        if touch:
+            existing["updated_at"] = datetime.utcnow().isoformat()
 
         table = await self.db.open_table("threads")
         await table.delete(f"thread_id = '{thread_id}'")
@@ -222,18 +223,74 @@ class AsyncLocalLanceDB:
             message["metadata"] = None
         return message
 
+    @staticmethod
+    def _strip_context_entry_payload(metadata: dict | None) -> dict | None:
+        """Drop bulky text/tags from context_entries before persisting; entries table is source of truth."""
+        if not metadata:
+            return metadata
+        entries = metadata.get("context_entries")
+        if not entries:
+            return metadata
+        slim = []
+        for e in entries:
+            slim.append({k: v for k, v in e.items() if k not in ("text", "tags")})
+        metadata = {**metadata, "context_entries": slim}
+        return metadata
+
+    async def _build_entry_lookup(self) -> dict[tuple[str, str], dict]:
+        """Map (date, title) -> {text, tags, entry_type} for hydration."""
+        try:
+            table = await self.db.open_table("journal")
+            arrow_table = await table.to_arrow()
+            df = pl.from_arrow(arrow_table)
+        except Exception as e:
+            logger.warning(f"Failed to load entries for hydration: {e}")
+            return {}
+        lookup: dict[tuple[str, str], dict] = {}
+        for row in df.iter_rows(named=True):
+            lookup[(row.get("date"), row.get("title"))] = {
+                "text": row.get("text"),
+                "tags": list(row.get("tags") or []),
+                "entry_type": row.get("entry_type", "daily"),
+            }
+        return lookup
+
+    def _hydrate_context_entries(self, message: dict, lookup: dict[tuple[str, str], dict]) -> dict:
+        """Fill in text/tags on context_entries from journal table when missing."""
+        metadata = message.get("metadata")
+        if not metadata:
+            return message
+        entries = metadata.get("context_entries") or []
+        for e in entries:
+            if e.get("text"):
+                continue  # already populated (legacy fat row)
+            hit = lookup.get((e.get("date"), e.get("title")))
+            if hit:
+                e["text"] = hit["text"]
+                if not e.get("tags"):
+                    e["tags"] = hit["tags"]
+            else:
+                e.setdefault("text", "")
+                e.setdefault("tags", [])
+        return message
+
     async def get_thread_messages(self, thread_id: str) -> list[dict]:
         """Get all messages for a thread sorted by timestamp"""
         table = await self.db.open_table("messages")
         arrow_table = await table.to_arrow()
         df = pl.from_arrow(arrow_table).filter(pl.col("thread_id") == thread_id)
         df = df.sort("timestamp")
-        return [self._decode_message_metadata(msg) for msg in df.to_dicts()]
+        messages = [self._decode_message_metadata(msg) for msg in df.to_dicts()]
+        if any((m.get("metadata") or {}).get("context_entries") for m in messages):
+            lookup = await self._build_entry_lookup()
+            messages = [self._hydrate_context_entries(m, lookup) for m in messages]
+        return messages
 
     async def save_message(self, thread_id: str, role: str, content: str, metadata: dict | None = None) -> dict:
         """Save a message to a thread"""
         message_id = str(uuid.uuid4())
         now = datetime.utcnow()
+        metadata = self._strip_context_entry_payload(metadata)
         metadata_json = json.dumps(metadata) if metadata else None
 
         message_doc = {
@@ -251,4 +308,8 @@ class AsyncLocalLanceDB:
         # update thread's updated_at
         await self.update_thread(thread_id, {})
 
-        return self._decode_message_metadata(message_doc.copy())
+        decoded = self._decode_message_metadata(message_doc.copy())
+        if (decoded.get("metadata") or {}).get("context_entries"):
+            lookup = await self._build_entry_lookup()
+            decoded = self._hydrate_context_entries(decoded, lookup)
+        return decoded

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from backend.flows import default_llm_flow, agentic_llm_flow_stream
+from backend.completions import generate_thread_title
 from core.lancedb_client import AsyncLocalLanceDB
 logger = logging.getLogger(__name__)
 
@@ -152,8 +153,26 @@ async def update_thread_title(
     if not await db.get_thread(thread_id):
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    await db.update_thread(thread_id, {"title": req.title})
+    await db.update_thread(thread_id, {"title": req.title}, touch=False)
     return {"message": "Thread title updated successfully"}
+
+
+@app.post("/threads/{thread_id}/generate-title")
+async def generate_thread_title_endpoint(
+    thread_id: str,
+    db: AsyncLocalLanceDB = Depends(get_db)
+) -> dict:
+    """Generate (and persist) a title for a thread based on its messages."""
+    if not await db.get_thread(thread_id):
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    messages = await db.get_thread_messages(thread_id)
+    if not messages:
+        raise HTTPException(status_code=400, detail="Thread has no messages to summarize")
+
+    title = await generate_thread_title(messages)
+    await db.update_thread(thread_id, {"title": title}, touch=False)
+    return {"title": title}
 
 
 @app.delete("/threads/{thread_id}")

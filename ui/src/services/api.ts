@@ -117,6 +117,11 @@ export const apiService = {
     await api.put(`/threads/${threadId}`, { title })
   },
 
+  async generateThreadTitle(threadId: string): Promise<{ title: string }> {
+    const response = await api.post<{ title: string }>(`/threads/${threadId}/generate-title`)
+    return response.data
+  },
+
   async addMessageToThread(
     threadId: string,
     role: string,

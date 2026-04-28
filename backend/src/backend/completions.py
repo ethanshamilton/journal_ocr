@@ -31,6 +31,18 @@ async def intent_classifier(query: str) -> SearchOptions:
     return await b.IntentClassifier(query)
 
 
+async def generate_thread_title(messages: list[dict]) -> str:
+    """Generate a concise title summarizing a chat thread."""
+    if not messages:
+        return "Untitled"
+    formatted = "\n\n".join(
+        f"[{m.get('role', 'unknown').upper()}]: {m.get('content', '')}"
+        for m in messages
+    )
+    title = (await b.GenerateThreadTitle(formatted)).strip().strip('"').strip("'")
+    return title or "Untitled"
+
+
 async def classify_personality(query: str, personalities: list[Personality]) -> Personality | None:
     """Classify the query and return the matching personality, or None for default."""
     if not personalities:

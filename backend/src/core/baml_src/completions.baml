@@ -48,6 +48,30 @@ function PersonalityClassifier(query: string, personality_options: string) -> st
   "#
 }
 
+// THREAD TITLE GENERATION
+
+function GenerateThreadTitle(messages: string) -> string {
+  client "openai/gpt-5-mini"
+  prompt #"
+    <INSTRUCTIONS>
+    Generate a concise, descriptive title for the following chat transcript.
+    Constraints:
+    - 6 words or fewer
+    - No surrounding quotes or trailing punctuation
+    - Capture the main topic, not generic phrasing like "Chat about journal"
+    Return ONLY the title text.
+    </INSTRUCTIONS>
+
+    <CHAT_HISTORY>
+    {{messages}}
+    </CHAT_HISTORY>
+
+    <OUTPUT_FORMAT>
+    {{ctx.output_format}}
+    </OUTPUT_FORMAT>
+  "#
+}
+
 // DIRECT CHAT
 
 function DirectChat(messages: string, entries: string, custom_instructions: string, personality_prompt: string) -> string {

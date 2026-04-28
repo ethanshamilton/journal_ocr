@@ -12,6 +12,7 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
   const [loading, setLoading] = useState(false)
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
+  const [generatingThreadId, setGeneratingThreadId] = useState<string | null>(null)
 
   useEffect(() => {
     loadThreads()
@@ -82,6 +83,20 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
     setEditTitle('')
   }
 
+  const handleGenerateTitle = async (threadId: string) => {
+    try {
+      setGeneratingThreadId(threadId)
+      const { title } = await apiService.generateThreadTitle(threadId)
+      setThreads(prev => prev.map(t =>
+        t.thread_id === threadId ? { ...t, title } : t
+      ))
+    } catch (error) {
+      console.error('Error generating thread title:', error)
+    } finally {
+      setGeneratingThreadId(null)
+    }
+  }
+
   return (
     <div className="chat-viewer">
       <div className="thread-list-header">
@@ -115,6 +130,17 @@ const ChatViewer = ({ onLoadThread }: ChatViewerProps) => {
               ) : (
                 <h4>{thread.title}</h4>
               )}
+              <button
+                className="generate-title"
+                title="Generate title from chat"
+                disabled={generatingThreadId === thread.thread_id}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleGenerateTitle(thread.thread_id)
+                }}
+              >
+                {generatingThreadId === thread.thread_id ? '…' : '✎'}
+              </button>
               <button
                 className="delete-thread"
                 onClick={(e) => {

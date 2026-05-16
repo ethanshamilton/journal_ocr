@@ -17,7 +17,7 @@ const providers = [
     label: "OpenAI",
     value: "openai",
     models: [
-      { label: "GPT-5", value: "gpt-5.4" }
+      { label: "GPT-5", value: "gpt-5.5" }
     ],
   },
   {
